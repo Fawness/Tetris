@@ -24,6 +24,14 @@ A modern, feature-rich implementation of the classic Tetris game that runs entir
 - **15% chance** of spawning crazy blocks when enabled
 - **Brown color scheme** to distinguish from normal pieces
 
+### 🐝 Bee Mode
+- **Swarming micro bees** that fly around the game board
+- **Automatic gap filling** - bees fill empty spaces with golden blocks
+- **Smart gap detection** - finds spaces with blocks above them
+- **Score bonus** - 5 points for each gap filled by bees
+- **Visual effects** - glowing bees with buzzing animation and trails
+- **Maximum 15 bees** with natural movement patterns
+
 ### Controls
 - **← →**: Move pieces left/right
 - **↓**: Soft drop (move down faster)
@@ -57,10 +65,18 @@ A modern, feature-rich implementation of the classic Tetris game that runs entir
 - Deer emojis bounce around on special pieces
 - Great for players who want an extra challenge
 
+### Bee Mode
+- Swarming bees automatically fill gaps in the board
+- Golden blocks appear where bees have filled spaces
+- Helps players by filling problematic gaps
+- Adds visual chaos with constant bee movement
+- Strategic element - can help or hinder gameplay
+
 ## 📊 Scoring System
 
 - **Line clear**: 100 points × current level
 - **Hard drop**: 2 points per cell dropped
+- **Bee gap fill**: 5 points per gap filled
 - **Level progression**: Every 10 lines cleared
 - **Speed increase**: Based on selected difficulty
 
@@ -79,6 +95,7 @@ The game is built with modularity in mind:
 - Adjustable difficulty settings
 - Customizable crazy block types
 - Flexible scoring system
+- Bee behavior and spawning mechanics
 
 ## 📱 Browser Compatibility
 

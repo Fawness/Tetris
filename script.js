@@ -37,6 +37,14 @@ class Tetris {
         this.deerAnimationFrame = 0;
         this.deerAnimationSpeed = 0.1;
         
+        // Bee Mode settings
+        this.beeMode = false;
+        this.bees = [];
+        this.beeSpawnChance = 0.02; // 2% chance per frame
+        this.maxBees = 15;
+        this.beeAnimationFrame = 0;
+        this.beeAnimationSpeed = 0.15;
+        
         this.init();
     }
     
@@ -212,6 +220,12 @@ class Tetris {
         // Check if Oh Deer God mode is enabled
         this.ohDeerMode = document.getElementById('ohDeerMode').checked;
         
+        // Check if Bee Mode is enabled
+        this.beeMode = document.getElementById('beeMode').checked;
+        if (this.beeMode) {
+            this.bees = [];
+        }
+        
         this.currentPiece = this.createNewPiece();
         this.nextPiece = this.createNewPiece();
         
@@ -219,6 +233,7 @@ class Tetris {
         document.getElementById('pauseBtn').style.display = 'block';
         document.getElementById('difficultySelect').disabled = true;
         document.getElementById('ohDeerMode').disabled = true;
+        document.getElementById('beeMode').disabled = true;
         
         this.gameLoop();
     }
@@ -371,6 +386,7 @@ class Tetris {
         document.getElementById('pauseBtn').textContent = 'Pause';
         document.getElementById('difficultySelect').disabled = false;
         document.getElementById('ohDeerMode').disabled = false;
+        document.getElementById('beeMode').disabled = false;
         
         this.showGameOver();
     }
@@ -401,6 +417,12 @@ class Tetris {
             this.deerAnimationFrame += this.deerAnimationSpeed;
         }
         
+        // Update bee animation and spawn bees
+        if (this.beeMode) {
+            this.beeAnimationFrame += this.beeAnimationSpeed;
+            this.updateBees();
+        }
+        
         if (this.dropTime >= this.dropInterval) {
             if (!this.movePiece(0, 1)) {
                 this.placePiece();
@@ -412,10 +434,124 @@ class Tetris {
         requestAnimationFrame((time) => this.gameLoop(time));
     }
     
+    updateBees() {
+        // Spawn new bees
+        if (this.bees.length < this.maxBees && Math.random() < this.beeSpawnChance) {
+            this.spawnBee();
+        }
+        
+        // Update existing bees
+        for (let i = this.bees.length - 1; i >= 0; i--) {
+            const bee = this.bees[i];
+            bee.x += bee.vx;
+            bee.y += bee.vy;
+            
+            // Add some random movement
+            bee.vx += (Math.random() - 0.5) * 0.5;
+            bee.vy += (Math.random() - 0.5) * 0.5;
+            
+            // Keep bees within bounds
+            bee.vx = Math.max(-2, Math.min(2, bee.vx));
+            bee.vy = Math.max(-2, Math.min(2, bee.vy));
+            
+            // Check if bee should fill a gap
+            if (this.shouldBeeFillGap(bee)) {
+                this.fillGapWithBee(bee);
+                this.bees.splice(i, 1);
+            }
+            
+            // Remove bees that are out of bounds or too old
+            if (bee.x < -10 || bee.x > this.canvas.width + 10 || 
+                bee.y < -10 || bee.y > this.canvas.height + 10 ||
+                bee.age > 300) {
+                this.bees.splice(i, 1);
+            }
+            
+            bee.age++;
+        }
+    }
+    
+    spawnBee() {
+        const side = Math.floor(Math.random() * 4); // 0: top, 1: right, 2: bottom, 3: left
+        let x, y, vx, vy;
+        
+        switch(side) {
+            case 0: // top
+                x = Math.random() * this.canvas.width;
+                y = -10;
+                vx = (Math.random() - 0.5) * 2;
+                vy = Math.random() * 2 + 1;
+                break;
+            case 1: // right
+                x = this.canvas.width + 10;
+                y = Math.random() * this.canvas.height;
+                vx = -Math.random() * 2 - 1;
+                vy = (Math.random() - 0.5) * 2;
+                break;
+            case 2: // bottom
+                x = Math.random() * this.canvas.width;
+                y = this.canvas.height + 10;
+                vx = (Math.random() - 0.5) * 2;
+                vy = -Math.random() * 2 - 1;
+                break;
+            case 3: // left
+                x = -10;
+                y = Math.random() * this.canvas.height;
+                vx = Math.random() * 2 + 1;
+                vy = (Math.random() - 0.5) * 2;
+                break;
+        }
+        
+        this.bees.push({
+            x: x,
+            y: y,
+            vx: vx,
+            vy: vy,
+            age: 0
+        });
+    }
+    
+    shouldBeeFillGap(bee) {
+        // Convert bee position to board coordinates
+        const boardX = Math.floor(bee.x / this.BLOCK_SIZE);
+        const boardY = Math.floor(bee.y / this.BLOCK_SIZE);
+        
+        // Check if bee is within board bounds
+        if (boardX < 0 || boardX >= this.BOARD_WIDTH || 
+            boardY < 0 || boardY >= this.BOARD_HEIGHT) {
+            return false;
+        }
+        
+        // Check if there's a gap (empty space with blocks above it)
+        if (this.board[boardY][boardX] === 0) {
+            // Check if there are blocks above this position
+            for (let y = boardY - 1; y >= 0; y--) {
+                if (this.board[y][boardX] !== 0) {
+                    return true; // Found a gap to fill
+                }
+            }
+        }
+        
+        return false;
+    }
+    
+    fillGapWithBee(bee) {
+        const boardX = Math.floor(bee.x / this.BLOCK_SIZE);
+        const boardY = Math.floor(bee.y / this.BLOCK_SIZE);
+        
+        // Fill the gap with a bee-colored block
+        this.board[boardY][boardX] = '#FFD700'; // Golden yellow for bees
+        
+        // Add some points for filling gaps
+        this.score += 5;
+        this.updateScore();
+    }
+    
     draw() {
         this.drawBoard();
         this.drawCurrentPiece();
         this.drawNextPiece();
+        this.drawBees();
     }
     
     drawBoard() {
@@ -537,6 +673,33 @@ class Tetris {
         this.ctx.shadowBlur = 5;
         this.ctx.fillText('🦌', centerX, deerY);
         this.ctx.shadowBlur = 0;
+    }
+    
+    drawBees() {
+        if (!this.beeMode) return;
+        
+        for (const bee of this.bees) {
+            // Animate bee with buzzing effect
+            const buzzOffset = Math.sin(this.beeAnimationFrame + bee.x * 0.1) * 2;
+            const beeX = bee.x + buzzOffset;
+            const beeY = bee.y;
+            
+            // Draw bee emoji
+            this.ctx.font = '12px Arial';
+            this.ctx.textAlign = 'center';
+            this.ctx.textBaseline = 'middle';
+            
+            // Add glow effect
+            this.ctx.shadowColor = '#FFD700';
+            this.ctx.shadowBlur = 3;
+            this.ctx.fillText('🐝', beeX, beeY);
+            this.ctx.shadowBlur = 0;
+            
+            // Add a small trail effect
+            this.ctx.globalAlpha = 0.3;
+            this.ctx.fillText('🐝', beeX - bee.vx * 2, beeY - bee.vy * 2);
+            this.ctx.globalAlpha = 1.0;
+        }
     }
 }
 
