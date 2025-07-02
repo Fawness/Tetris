@@ -1,4 +1,4 @@
-class Tetris {
+class WildBlocks {
     constructor() {
         this.canvas = document.getElementById('gameCanvas');
         this.ctx = this.canvas.getContext('2d');
@@ -1315,7 +1315,7 @@ class Tetris {
             <p>Final Score: ${this.score}</p>
             <p>Lines: ${this.lines}</p>
             <p>Level: ${this.level}</p>
-            <button onclick="this.parentElement.remove(); tetris.startGame()">Play Again</button>
+            <button onclick="this.parentElement.remove(); wildBlocks.startGame()">Play Again</button>
         `;
         document.body.appendChild(overlay);
     }
@@ -1850,7 +1850,7 @@ class Tetris {
 }
 
 // Initialize the game when the page loads
-let tetris;
+let wildBlocks;
 document.addEventListener('DOMContentLoaded', () => {
-    tetris = new Tetris();
+    wildBlocks = new WildBlocks();
 }); 

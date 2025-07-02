@@ -1,11 +1,11 @@
-# Tetris - Ultra Lightweight Browser Game
+# Wild Blocks 🐾 - Ultra Lightweight Browser Game
 
-A modern, feature-rich implementation of the classic Tetris game that runs entirely in the browser with no dependencies.
+A modern, feature-rich implementation of the classic block-stacking game that runs entirely in the browser with no dependencies.
 
 ## 🎮 Features
 
 ### Core Gameplay
-- **Classic Tetris mechanics** with all 7 standard pieces (I, O, T, S, Z, J, L)
+- **Classic block-stacking mechanics** with all 7 standard pieces (I, O, T, S, Z, J, L)
 - **Smooth piece movement** and rotation
 - **Line clearing** with stunning visual effects and animations
 - **Progressive difficulty** - speed increases as you level up
@@ -72,7 +72,7 @@ A modern, feature-rich implementation of the classic Tetris game that runs entir
 ## 🎯 Game Modes
 
 ### Classic Mode
-- Standard Tetris gameplay
+- Standard block-stacking gameplay
 - Choose from 4 difficulty levels
 - Perfect for beginners and veterans alike
 
