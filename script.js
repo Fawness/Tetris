@@ -40,10 +40,34 @@ class Tetris {
         // Bee Mode settings
         this.beeMode = false;
         this.bees = [];
-        this.beeSpawnChance = 0.02; // 2% chance per frame
-        this.maxBees = 15;
+        this.beeSpawnChance = 0.015; // Reduced spawn chance
+        this.maxBees = 12; // Reduced max bees
         this.beeAnimationFrame = 0;
         this.beeAnimationSpeed = 0.15;
+        
+        // Ferret Mode settings
+        this.ferretMode = false;
+        this.ferretSpawnChance = 0.08; // 8% chance for ferret piece
+        this.ferretAnimationFrame = 0;
+        this.ferretAnimationSpeed = 0.2;
+        this.ferretNoodling = false;
+        this.ferretNoodleSteps = 0;
+        this.maxNoodleSteps = 120; // Much slower animation - 2 seconds at 60fps
+        this.ferretNoodlePositions = []; // Store noodling animation positions
+        this.ferretNoodleProgress = 0; // Animation progress
+        this.ferretNoodlePhase = 0; // Current noodling phase
+        this.maxNoodlePhases = 5; // Maximum number of noodling phases
+        this.ferretNoodleDelay = 0; // Delay between phases
+        
+        // Line clear animation
+        this.lineClearAnimation = {
+            active: false,
+            lines: [],
+            progress: 0,
+            duration: 30, // 0.5 seconds at 60fps
+            outlineAlpha: 1,
+            fadeAlpha: 1
+        };
         
         this.init();
     }
@@ -168,6 +192,42 @@ class Tetris {
         
         this.pieceTypes = Object.keys(this.pieces);
         this.crazyBlockTypes = Object.keys(this.crazyBlocks);
+        
+        // Ferret piece for Ferret Mode
+        this.ferretPiece = {
+            shape: [[1, 1, 1, 1, 1, 1, 1]], // 1x7 piece
+            color: '#8B4513', // Brown color for ferret
+            isFerret: true
+        };
+        
+        // Ferret bending configurations for intelligent gap filling
+        this.ferretBends = [
+            // Straight (original)
+            [[1, 1, 1, 1, 1, 1, 1]],
+            // Slight bend
+            [[1, 1, 1, 1, 1, 1, 0],
+             [0, 0, 0, 0, 0, 0, 1]],
+            // Reverse slight bend
+            [[0, 1, 1, 1, 1, 1, 1],
+             [1, 0, 0, 0, 0, 0, 0]],
+            // U-shape
+            [[1, 1, 1, 1, 1, 1, 1],
+             [1, 0, 0, 0, 0, 0, 1]],
+            // L-shape
+            [[1, 1, 1, 1, 1, 1, 1],
+             [1, 0, 0, 0, 0, 0, 0]],
+            // Reverse L-shape
+            [[1, 1, 1, 1, 1, 1, 1],
+             [0, 0, 0, 0, 0, 0, 1]],
+            // Zigzag
+            [[1, 1, 1, 1, 1, 1, 0],
+             [0, 0, 0, 0, 0, 0, 1],
+             [1, 0, 0, 0, 0, 0, 0]],
+            // Reverse zigzag
+            [[0, 1, 1, 1, 1, 1, 1],
+             [1, 0, 0, 0, 0, 0, 0],
+             [0, 0, 0, 0, 0, 0, 1]]
+        ];
     }
     
     setupEventListeners() {
@@ -226,6 +286,9 @@ class Tetris {
             this.bees = [];
         }
         
+        // Check if Ferret Mode is enabled
+        this.ferretMode = document.getElementById('ferretMode').checked;
+        
         this.currentPiece = this.createNewPiece();
         this.nextPiece = this.createNewPiece();
         
@@ -234,6 +297,7 @@ class Tetris {
         document.getElementById('difficultySelect').disabled = true;
         document.getElementById('ohDeerMode').disabled = true;
         document.getElementById('beeMode').disabled = true;
+        document.getElementById('ferretMode').disabled = true;
         
         this.gameLoop();
     }
@@ -248,8 +312,12 @@ class Tetris {
     createNewPiece() {
         let type, piece;
         
+        // Check if Ferret Mode is enabled and if we should spawn a ferret piece
+        if (this.ferretMode && Math.random() < this.ferretSpawnChance) {
+            piece = this.ferretPiece;
+        }
         // Check if Oh Deer God mode is enabled and if we should spawn a crazy block
-        if (this.ohDeerMode && Math.random() < this.crazyBlockChance) {
+        else if (this.ohDeerMode && Math.random() < this.crazyBlockChance) {
             type = this.crazyBlockTypes[Math.floor(Math.random() * this.crazyBlockTypes.length)];
             piece = this.crazyBlocks[type];
         } else {
@@ -257,12 +325,42 @@ class Tetris {
             piece = this.pieces[type];
         }
         
+        // Calculate initial position, ensuring ferret pieces start in valid positions
+        let initialX = Math.floor(this.BOARD_WIDTH / 2) - Math.floor(piece.shape[0].length / 2);
+        
+        // For ferret pieces, ensure they start within bounds and check if position is valid
+        if (piece.isFerret) {
+            initialX = Math.max(0, Math.min(this.BOARD_WIDTH - piece.shape[0].length, initialX));
+            
+            // Check if the ferret can actually spawn at this position
+            if (!this.isValidMove(piece.shape, initialX, 0)) {
+                // Try to find a valid spawn position
+                let validSpawnFound = false;
+                for (let tryX = 0; tryX <= this.BOARD_WIDTH - piece.shape[0].length; tryX++) {
+                    if (this.isValidMove(piece.shape, tryX, 0)) {
+                        initialX = tryX;
+                        validSpawnFound = true;
+                        break;
+                    }
+                }
+                
+                // If no valid spawn position found, don't spawn a ferret
+                if (!validSpawnFound) {
+                    // Fallback to normal piece
+                    type = this.pieceTypes[Math.floor(Math.random() * this.pieceTypes.length)];
+                    piece = this.pieces[type];
+                    initialX = Math.floor(this.BOARD_WIDTH / 2) - Math.floor(piece.shape[0].length / 2);
+                }
+            }
+        }
+        
         return {
             shape: piece.shape,
             color: piece.color,
-            x: Math.floor(this.BOARD_WIDTH / 2) - Math.floor(piece.shape[0].length / 2),
+            x: initialX,
             y: 0,
-            isCrazy: piece.isCrazy || false
+            isCrazy: piece.isCrazy || false,
+            isFerret: piece.isFerret || false
         };
     }
     
@@ -301,10 +399,32 @@ class Tetris {
     }
     
     hardDrop() {
-        while (this.movePiece(0, 1)) {
-            this.score += 2;
+        // For ferret pieces, use special hard drop logic
+        if (this.currentPiece.isFerret) {
+            this.hardDropFerret();
+        } else {
+            while (this.movePiece(0, 1)) {
+                this.score += 2;
+            }
+            this.placePiece();
         }
-        this.placePiece();
+    }
+    
+    hardDropFerret() {
+        // Find the lowest valid position for the ferret
+        let lowestY = this.BOARD_HEIGHT - 1;
+        while (lowestY >= 0 && !this.isValidMove(this.currentPiece.shape, this.currentPiece.x, lowestY)) {
+            lowestY--;
+        }
+        
+        // If we found a valid position, place the ferret there
+        if (lowestY >= 0) {
+            this.currentPiece.y = lowestY;
+            this.placePiece();
+        } else {
+            // If no valid position found, end the game
+            this.endGame();
+        }
     }
     
     isValidMove(shape, x, y) {
@@ -326,16 +446,12 @@ class Tetris {
     }
     
     placePiece() {
-        for (let row = 0; row < this.currentPiece.shape.length; row++) {
-            for (let col = 0; col < this.currentPiece.shape[row].length; col++) {
-                if (this.currentPiece.shape[row][col]) {
-                    const x = this.currentPiece.x + col;
-                    const y = this.currentPiece.y + row;
-                    if (y >= 0) {
-                        this.board[y][x] = this.currentPiece.color;
-                    }
-                }
-            }
+        // Special handling for ferret pieces
+        if (this.currentPiece.isFerret) {
+            this.placeFerretPiece();
+        } else {
+            // Normal piece placement
+            this.placeNormalPiece();
         }
         
         this.clearLines();
@@ -347,29 +463,828 @@ class Tetris {
         }
     }
     
-    clearLines() {
-        let linesCleared = 0;
+    placeFerretPiece() {
+        // Always place the ferret normally first
+        this.placeNormalPiece();
         
-        for (let y = this.BOARD_HEIGHT - 1; y >= 0; y--) {
-            if (this.board[y].every(cell => cell !== 0)) {
-                this.board.splice(y, 1);
-                this.board.unshift(new Array(this.BOARD_WIDTH).fill(0));
-                linesCleared++;
-                y++; // Check the same line again
+        // Reset noodling state
+        this.ferretNoodling = false;
+        this.ferretNoodleSteps = 0;
+        this.ferretNoodleProgress = 0;
+        this.ferretNoodlePhase = 0;
+        this.ferretNoodleDelay = 0;
+        this.ferretNoodlePositions = [];
+        
+        // Start the noodling process
+        this.startFerretNoodling();
+        
+        // Add bonus points for ferret placement
+        this.score += 50;
+        this.updateScore();
+    }
+    
+    startFerretNoodling() {
+        this.ferretNoodling = true;
+        this.ferretNoodleSteps = 0;
+        this.ferretNoodleProgress = 0;
+        this.ferretNoodlePhase = 0;
+        this.ferretNoodleDelay = 0;
+        this.ferretNoodlePositions = [];
+        
+        // Start the first noodling phase
+        this.startNextNoodlePhase();
+    }
+    
+    startNextNoodlePhase() {
+        // Find the best position for this phase
+        const bestPosition = this.findBestFerretNoodlePosition();
+        if (bestPosition) {
+            // Generate intermediate positions for smooth animation
+            this.generateNoodleAnimationPath(bestPosition);
+            
+            // If we have valid positions, start the phase
+            if (this.ferretNoodlePositions.length > 0) {
+                this.ferretNoodleSteps = 0;
+                this.ferretNoodleProgress = 0;
+            } else {
+                // No valid positions found, stop noodling
+                this.ferretNoodling = false;
+            }
+        } else {
+            // No better position found, stop noodling
+            this.ferretNoodling = false;
+        }
+    }
+    
+    updateFerretNoodling() {
+        if (!this.ferretNoodling) {
+            return;
+        }
+        
+        // Handle delay between phases
+        if (this.ferretNoodleDelay > 0) {
+            this.ferretNoodleDelay--;
+            return;
+        }
+        
+        // Check if current phase is complete
+        if (this.ferretNoodleSteps >= this.maxNoodleSteps) {
+            // Complete the current phase
+            this.completeNoodlePhase();
+            return;
+        }
+        
+        // Update animation progress
+        this.ferretNoodleProgress = this.ferretNoodleSteps / this.maxNoodleSteps;
+        
+        // Perform animated noodling - only update every few frames for slower movement
+        if (this.ferretNoodlePositions.length > 0 && this.ferretNoodleSteps % 2 === 0) {
+            this.performAnimatedFerretNoodle();
+        }
+        
+        this.ferretNoodleSteps++;
+    }
+    
+    completeNoodlePhase() {
+        // Place ferret at final position of current phase
+        if (this.ferretNoodlePositions.length > 0) {
+            const finalPosition = this.ferretNoodlePositions[this.ferretNoodlePositions.length - 1];
+            this.removeActiveFerretFromBoard();
+            // Use the bend shape directly instead of bend index
+            const bendShape = finalPosition.bendShape || this.ferretPiece.shape;
+            this.placeFerretAtPosition(finalPosition.x, finalPosition.y, bendShape);
+        }
+        
+        this.ferretNoodlePhase++;
+        
+        // Check if we should continue noodling
+        if (this.ferretNoodlePhase < this.maxNoodlePhases) {
+            // Add a small delay before next phase
+            this.ferretNoodleDelay = 30; // 0.5 second delay at 60fps
+            
+            // Start next phase
+            setTimeout(() => {
+                if (this.ferretNoodling) {
+                    this.startNextNoodlePhase();
+                }
+            }, 500);
+        } else {
+            // Maximum phases reached, stop noodling
+            this.ferretNoodling = false;
+        }
+    }
+    
+    generateNoodleAnimationPath(finalPosition) {
+        // Get current ferret position and shape
+        let currentX = 0, currentY = 0;
+        let currentShape = this.ferretPiece.shape;
+        for (let y = 0; y < this.BOARD_HEIGHT; y++) {
+            for (let x = 0; x < this.BOARD_WIDTH; x++) {
+                if (this.board[y][x] === this.ferretPiece.color) {
+                    currentX = x;
+                    currentY = y;
+                    currentShape = this.detectCurrentFerretShape(x, y);
+                    break;
+                }
             }
         }
         
-        if (linesCleared > 0) {
-            this.lines += linesCleared;
-            this.score += linesCleared * 100 * this.level;
-            this.level = Math.floor(this.lines / 10) + 1;
-            
-            // Calculate new speed based on difficulty
-            const baseSpeed = this.difficultySettings[document.getElementById('difficultySelect').value].initialSpeed;
-            this.dropInterval = Math.max(50, baseSpeed - (this.level - 1) * this.speedIncrease);
-            
-            this.updateScore();
+        // Validate final position - ensure it's not at the top and is below current position
+        const bendShape = finalPosition.shape || currentShape;
+        if (finalPosition.y <= 0 || finalPosition.y < currentY || !this.canPlaceFerretBendAt(finalPosition.x, finalPosition.y, bendShape)) {
+            // If final position is invalid or would move upward, don't noodle
+            this.ferretNoodlePositions = [];
+            return;
         }
+        
+        // Generate intermediate positions with bending effect - more steps for slower animation
+        const steps = 40; // More steps for smoother, slower animation
+        for (let i = 0; i <= steps; i++) {
+            const progress = i / steps;
+            const easeProgress = this.easeInOutQuad(progress);
+            
+            // Create bending effect by adding some curve to the movement
+            const bendOffset = Math.sin(progress * Math.PI) * 3;
+            
+            const intermediateX = currentX + (finalPosition.x - currentX) * easeProgress;
+            const intermediateY = currentY + (finalPosition.y - currentY) * easeProgress + bendOffset;
+            
+            // Validate intermediate position - ensure it never goes above current position
+            const roundedX = Math.round(intermediateX);
+            const roundedY = Math.round(intermediateY);
+            
+            // Only add valid positions that are at or below current Y
+            if (roundedY >= currentY && this.canPlaceFerretBendAt(roundedX, roundedY, bendShape)) {
+                this.ferretNoodlePositions.push({
+                    x: roundedX,
+                    y: roundedY,
+                    progress: progress,
+                    bendShape: bendShape
+                });
+            }
+        }
+    }
+    
+    easeInOutQuad(t) {
+        return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+    }
+    
+    performAnimatedFerretNoodle() {
+        if (this.ferretNoodlePositions.length === 0) return;
+        
+        // Get current animation frame
+        const frameIndex = Math.floor(this.ferretNoodleProgress * (this.ferretNoodlePositions.length - 1));
+        const position = this.ferretNoodlePositions[frameIndex];
+        
+        if (position && position.y > 0) { // Extra safety check
+            // Remove ferret from current position
+            this.removeActiveFerretFromBoard();
+            
+            // Place ferret at intermediate position with bend shape
+            const bendShape = position.bendShape || this.ferretPiece.shape;
+            this.placeFerretAtPosition(position.x, position.y, bendShape);
+        }
+    }
+    
+    performFerretNoodle() {
+        // This method is now replaced by animated noodling
+        // Keeping it for compatibility but it's no longer used
+    }
+    
+    removeFerretFromBoard() {
+        // Find and remove all ferret blocks from the board
+        for (let y = 0; y < this.BOARD_HEIGHT; y++) {
+            for (let x = 0; x < this.BOARD_WIDTH; x++) {
+                if (this.board[y][x] === this.ferretPiece.color) {
+                    this.board[y][x] = 0;
+                }
+            }
+        }
+    }
+    
+    removeActiveFerretFromBoard() {
+        // Only remove the active ferret (the one that's currently noodling)
+        // This is a more targeted approach that preserves settled ferrets
+        for (let y = 0; y < this.BOARD_HEIGHT; y++) {
+            for (let x = 0; x < this.BOARD_WIDTH; x++) {
+                if (this.board[y][x] === this.ferretPiece.color) {
+                    this.board[y][x] = 0;
+                    // Only remove the first ferret we find (the active one)
+                    return;
+                }
+            }
+        }
+    }
+    
+    placeFerretAtPosition(x, y, bendShape = null) {
+        // Place the ferret at the specified position with optional bend shape
+        const shapeToUse = bendShape || this.ferretPiece.shape;
+        
+        for (let row = 0; row < shapeToUse.length; row++) {
+            for (let col = 0; col < shapeToUse[row].length; col++) {
+                if (shapeToUse[row][col]) {
+                    const boardX = x + col;
+                    const boardY = y + row;
+                    if (boardX >= 0 && boardX < this.BOARD_WIDTH && boardY >= 0 && boardY < this.BOARD_HEIGHT) {
+                        this.board[boardY][boardX] = this.ferretPiece.color;
+                    }
+                }
+            }
+        }
+    }
+    
+    // Helper: Detect the current shape of the ferret on the board
+    detectCurrentFerretShape(startX, startY) {
+        // Check if it's horizontal (1x7)
+        let horizontalCount = 0;
+        for (let x = startX; x < this.BOARD_WIDTH && this.board[startY][x] === this.ferretPiece.color; x++) {
+            horizontalCount++;
+        }
+        
+        // Check if it's vertical (7x1)
+        let verticalCount = 0;
+        for (let y = startY; y < this.BOARD_HEIGHT && this.board[y][startX] === this.ferretPiece.color; y++) {
+            verticalCount++;
+        }
+        
+        // Return the appropriate shape
+        if (horizontalCount >= 7) {
+            return this.ferretPiece.shape; // 1x7 horizontal
+        } else if (verticalCount >= 7) {
+            // Return rotated shape (7x1 vertical)
+            return this.rotateMatrix(this.ferretPiece.shape);
+        } else {
+            // Fallback to original shape
+            return this.ferretPiece.shape;
+        }
+    }
+    
+    // Helper: Get all reachable positions for the active ferret using BFS
+    getReachableFerretPositions(startX, startY, shape) {
+        const visited = new Set();
+        const queue = [];
+        const positions = [];
+        const key = (x, y) => `${x},${y}`;
+        queue.push({ x: startX, y: startY });
+        visited.add(key(startX, startY));
+        
+        while (queue.length > 0) {
+            const { x, y } = queue.shift();
+            if (this.canPlaceFerretBendAt(x, y, shape)) {
+                positions.push({ x, y });
+                // Try moving down, left, right (no up)
+                const moves = [
+                    { dx: 0, dy: 1 },
+                    { dx: -1, dy: 0 },
+                    { dx: 1, dy: 0 }
+                ];
+                for (const move of moves) {
+                    const nx = x + move.dx;
+                    const ny = y + move.dy;
+                    const k = key(nx, ny);
+                    if (!visited.has(k) && this.canPlaceFerretBendAt(nx, ny, shape)) {
+                        visited.add(k);
+                        queue.push({ x: nx, y: ny });
+                    }
+                }
+            }
+        }
+        return positions;
+    }
+
+    findBestFerretNoodlePosition() {
+        let bestScore = -1;
+        let bestPosition = null;
+        let bestBend = 0; // Index of the best bend configuration
+        
+        // Get current ferret position and shape
+        let currentX = 0, currentY = 0;
+        let currentShape = this.ferretPiece.shape; // Default to original shape
+        
+        outer: for (let y = 0; y < this.BOARD_HEIGHT; y++) {
+            for (let x = 0; x < this.BOARD_WIDTH; x++) {
+                if (this.board[y][x] === this.ferretPiece.color) {
+                    currentX = x;
+                    currentY = y;
+                    // Try to determine the current shape by checking the pattern
+                    currentShape = this.detectCurrentFerretShape(x, y);
+                    break outer;
+                }
+            }
+        }
+        
+        // Try different bend configurations that all have exactly 7 blocks
+        const bendConfigs = [
+            currentShape, // Use detected current shape instead of always 1x7
+            this.createBendShape(2, 4), // 2x4 with 7 blocks (L-shape)
+            this.createBendShape(3, 3), // 3x3 with 7 blocks (T-shape)
+            this.createBendShape(2, 5), // 2x5 with 7 blocks (long L-shape)
+            this.createBendShape(4, 2), // 4x2 with 7 blocks (tall L-shape)
+        ];
+        
+        // For the first phase, be more permissive - try all positions, not just reachable ones
+        if (this.ferretNoodlePhase === 0) {
+            // Try all possible positions for each bend configuration
+            for (let bendIndex = 0; bendIndex < bendConfigs.length; bendIndex++) {
+                const bendShape = bendConfigs[bendIndex];
+                const maxX = this.BOARD_WIDTH - bendShape[0].length;
+                
+                for (let x = 0; x <= maxX; x++) {
+                    for (let y = currentY; y < this.BOARD_HEIGHT; y++) {
+                        if (this.canPlaceFerretBendAt(x, y, bendShape)) {
+                            const score = this.calculateBendScore(x, y, bendShape);
+                            if (score > bestScore) {
+                                bestScore = score;
+                                bestPosition = { x, y };
+                                bestBend = bendIndex;
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
+            // For subsequent phases, use reachable positions only
+            for (let bendIndex = 0; bendIndex < bendConfigs.length; bendIndex++) {
+                const bendShape = bendConfigs[bendIndex];
+                const reachable = this.getReachableFerretPositions(currentX, currentY, bendShape);
+                for (const pos of reachable) {
+                    const { x, y } = pos;
+                    const score = this.calculateBendScore(x, y, bendShape);
+                    if (score > bestScore) {
+                        bestScore = score;
+                        bestPosition = { x, y };
+                        bestBend = bendIndex;
+                    }
+                }
+            }
+        }
+        
+        // If no good position found, don't noodle
+        if (bestScore <= 0) {
+            return null;
+        }
+        
+        // For multi-phase noodling, only move if the improvement is significant
+        // This prevents endless tiny movements, but be more lenient in later game states
+        const minScoreThreshold = this.ferretNoodlePhase > 0 ? 30 : 0; // Lower threshold
+        if (this.ferretNoodlePhase > 0 && bestScore < minScoreThreshold) {
+            return null; // Not enough improvement to continue
+        }
+        
+        return { ...bestPosition, shape: bendConfigs[bestBend] };
+    }
+    
+    canPlaceFerretAt(x, y) {
+        // Check if we can place the ferret at this position
+        for (let col = 0; col < this.ferretPiece.shape[0].length; col++) {
+            const boardX = x + col;
+            const boardY = y;
+            
+            if (boardX < 0 || boardX >= this.BOARD_WIDTH || 
+                boardY < 0 || boardY >= this.BOARD_HEIGHT) {
+                return false;
+            }
+            
+            // Can't place on top of existing blocks (except other ferret blocks)
+            if (this.board[boardY][boardX] !== 0 && this.board[boardY][boardX] !== this.ferretPiece.color) {
+                return false;
+            }
+        }
+        
+        return true;
+    }
+    
+    canPlaceFerretBendAt(x, y, bendShape) {
+        // Check if we can place the ferret bend at this position
+        for (let row = 0; row < bendShape.length; row++) {
+            for (let col = 0; col < bendShape[row].length; col++) {
+                if (bendShape[row][col]) {
+                    const boardX = x + col;
+                    const boardY = y + row;
+                    
+                    if (boardX < 0 || boardX >= this.BOARD_WIDTH || 
+                        boardY < 0 || boardY >= this.BOARD_HEIGHT) {
+                        return false;
+                    }
+                    
+                    // Can't place on top of existing blocks (except other ferret blocks)
+                    if (this.board[boardY][boardX] !== 0 && this.board[boardY][boardX] !== this.ferretPiece.color) {
+                        return false;
+                    }
+                }
+            }
+        }
+        
+        return true;
+    }
+    
+    calculateNoodleScore(x, y) {
+        let score = 0;
+        
+        // Get current ferret position to ensure we only score downward movement
+        let currentY = 0;
+        for (let y2 = 0; y2 < this.BOARD_HEIGHT; y2++) {
+            for (let x2 = 0; x2 < this.BOARD_WIDTH; x2++) {
+                if (this.board[y2][x2] === this.ferretPiece.color) {
+                    currentY = y2;
+                    break;
+                }
+            }
+        }
+        
+        // Only score positions that are at or below current position
+        if (y < currentY) {
+            return -1; // Penalize upward movement
+        }
+        
+        // Check each position the ferret would occupy
+        for (let col = 0; col < this.ferretPiece.shape[0].length; col++) {
+            const boardX = x + col;
+            const boardY = y;
+            
+            if (boardX >= 0 && boardX < this.BOARD_WIDTH && boardY >= 0 && boardY < this.BOARD_HEIGHT) {
+                // Bonus for filling empty spaces
+                if (this.board[boardY][boardX] === 0) {
+                    score += 15;
+                    
+                    // Extra bonus for filling gaps (spaces with blocks above)
+                    let hasBlocksAbove = false;
+                    for (let aboveY = boardY - 1; aboveY >= 0; aboveY--) {
+                        if (this.board[aboveY][boardX] !== 0 && this.board[aboveY][boardX] !== this.ferretPiece.color) {
+                            hasBlocksAbove = true;
+                            break;
+                        }
+                    }
+                    if (hasBlocksAbove) {
+                        score += 30; // Extra points for filling gaps
+                    }
+                }
+                
+                // Bonus for being near other blocks (creating potential line clears)
+                if (boardY > 0 && this.board[boardY - 1][boardX] !== 0 && this.board[boardY - 1][boardX] !== this.ferretPiece.color) {
+                    score += 8;
+                }
+                if (boardX > 0 && this.board[boardY][boardX - 1] !== 0 && this.board[boardY][boardX - 1] !== this.ferretPiece.color) {
+                    score += 5;
+                }
+                if (boardX < this.BOARD_WIDTH - 1 && this.board[boardY][boardX + 1] !== 0 && this.board[boardY][boardX + 1] !== this.ferretPiece.color) {
+                    score += 5;
+                }
+            }
+        }
+        
+        // Prefer lower positions (closer to bottom)
+        score += (this.BOARD_HEIGHT - y) * 3;
+        
+        return score;
+    }
+    
+    calculateBendScore(x, y, bendShape) {
+        let score = 0;
+        
+        // Get current ferret position to ensure we only score downward movement
+        let currentY = 0;
+        for (let y2 = 0; y2 < this.BOARD_HEIGHT; y2++) {
+            for (let x2 = 0; x2 < this.BOARD_WIDTH; x2++) {
+                if (this.board[y2][x2] === this.ferretPiece.color) {
+                    currentY = y2;
+                    break;
+                }
+            }
+        }
+        
+        // Only score positions that are at or below current position
+        if (y < currentY) {
+            return -1; // Penalize upward movement
+        }
+        
+        let filledSpaces = 0;
+        let gapFills = 0;
+        let lineClearPotential = 0;
+        let blocksBelow = 0;
+        
+        // Check each position the bent ferret would occupy
+        for (let row = 0; row < bendShape.length; row++) {
+            for (let col = 0; col < bendShape[row].length; col++) {
+                if (bendShape[row][col]) {
+                    const boardX = x + col;
+                    const boardY = y + row;
+                    
+                    if (boardX >= 0 && boardX < this.BOARD_WIDTH && boardY >= 0 && boardY < this.BOARD_HEIGHT) {
+                        // Bonus for filling empty spaces
+                        if (this.board[boardY][boardX] === 0) {
+                            filledSpaces++;
+                            score += 30; // Higher bonus for bent ferret filling spaces
+                            
+                            // Extra bonus for filling gaps (spaces with blocks above)
+                            let hasBlocksAbove = false;
+                            let gapHeight = 0;
+                            for (let aboveY = boardY - 1; aboveY >= 0; aboveY--) {
+                                if (this.board[aboveY][boardX] !== 0 && this.board[aboveY][boardX] !== this.ferretPiece.color) {
+                                    hasBlocksAbove = true;
+                                    break;
+                                }
+                                gapHeight++;
+                            }
+                            if (hasBlocksAbove) {
+                                gapFills++;
+                                score += 60 + (gapHeight * 8); // Extra points for filling gaps, more for deeper gaps
+                            }
+                            
+                            // Check if there are blocks below this position (creating a bridge)
+                            if (boardY < this.BOARD_HEIGHT - 1 && this.board[boardY + 1][boardX] !== 0 && this.board[boardY + 1][boardX] !== this.ferretPiece.color) {
+                                blocksBelow++;
+                                score += 25; // Bonus for bridging gaps
+                            }
+                        }
+                        
+                        // Bonus for being near other blocks (creating potential line clears)
+                        if (boardY > 0 && this.board[boardY - 1][boardX] !== 0 && this.board[boardY - 1][boardX] !== this.ferretPiece.color) {
+                            score += 15;
+                            lineClearPotential++;
+                        }
+                        if (boardX > 0 && this.board[boardY][boardX - 1] !== 0 && this.board[boardY][boardX - 1] !== this.ferretPiece.color) {
+                            score += 10;
+                            lineClearPotential++;
+                        }
+                        if (boardX < this.BOARD_WIDTH - 1 && this.board[boardY][boardX + 1] !== 0 && this.board[boardY][boardX + 1] !== this.ferretPiece.color) {
+                            score += 10;
+                            lineClearPotential++;
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Prefer lower positions (closer to bottom)
+        score += (this.BOARD_HEIGHT - y) * 6;
+        
+        // Bonus for using bent shapes (more interesting)
+        if (bendShape.length > 1) {
+            score += 25;
+        }
+        
+        // Bonus for filling multiple gaps
+        if (gapFills >= 2) {
+            score += 40;
+        }
+        
+        // Bonus for bridging gaps (connecting blocks above and below)
+        if (blocksBelow >= 2) {
+            score += 35;
+        }
+        
+        // Bonus for high line clear potential
+        if (lineClearPotential >= 3) {
+            score += 30;
+        }
+        
+        // Heavy penalty for not filling any spaces
+        if (filledSpaces === 0) {
+            score -= 200;
+        }
+        
+        // Bonus for filling spaces directly below current ferret position
+        if (y > currentY) {
+            score += 20; // Extra incentive to move down
+        }
+        
+        return score;
+    }
+    
+    placeNormalPiece() {
+        // Fallback to normal piece placement
+        for (let row = 0; row < this.currentPiece.shape.length; row++) {
+            for (let col = 0; col < this.currentPiece.shape[row].length; col++) {
+                if (this.currentPiece.shape[row][col]) {
+                    const x = this.currentPiece.x + col;
+                    const y = this.currentPiece.y + row;
+                    if (y >= 0) {
+                        this.board[y][x] = this.currentPiece.color;
+                    }
+                }
+            }
+        }
+    }
+    
+    createBendShape(rows, cols) {
+        // Create a bent ferret shape that always has 7 blocks total
+        const shape = [];
+        let blocksPlaced = 0;
+        const totalBlocks = 7; // Ferret should always have 7 blocks
+        
+        for (let row = 0; row < rows; row++) {
+            shape[row] = [];
+            for (let col = 0; col < cols; col++) {
+                if (blocksPlaced < totalBlocks) {
+                    shape[row][col] = true;
+                    blocksPlaced++;
+                } else {
+                    shape[row][col] = false;
+                }
+            }
+        }
+        
+        // If we didn't place all 7 blocks, fill the remaining positions
+        if (blocksPlaced < totalBlocks) {
+            for (let row = 0; row < rows && blocksPlaced < totalBlocks; row++) {
+                for (let col = 0; col < cols && blocksPlaced < totalBlocks; col++) {
+                    if (!shape[row][col]) {
+                        shape[row][col] = true;
+                        blocksPlaced++;
+                    }
+                }
+            }
+        }
+        
+        return shape;
+    }
+    
+    findBestFerretPosition() {
+        let bestScore = -Infinity;
+        let bestX = 0;
+        let bestY = 0;
+        let bestBend = this.ferretPiece.shape;
+        
+        // Try different bend configurations
+        const bendConfigs = [
+            this.ferretPiece.shape, // Straight
+            this.createBendShape(1, 2), // Small bend
+            this.createBendShape(2, 1), // Medium bend
+            this.createBendShape(3, 1), // Large bend
+            this.createBendShape(1, 3), // Vertical bend
+        ];
+        
+        // Get current ferret position
+        let currentY = 0;
+        for (let y = 0; y < this.BOARD_HEIGHT; y++) {
+            for (let x = 0; x < this.BOARD_WIDTH; x++) {
+                if (this.board[y][x] === this.ferretPiece.color) {
+                    currentY = y;
+                    break;
+                }
+            }
+        }
+        
+        // Try each bend configuration
+        for (let bendIndex = 0; bendIndex < bendConfigs.length; bendIndex++) {
+            const bendShape = bendConfigs[bendIndex];
+            
+            // Try different positions, prioritizing lower positions
+            for (let y = currentY; y < this.BOARD_HEIGHT; y++) {
+                for (let x = 0; x < this.BOARD_WIDTH; x++) {
+                    if (this.canPlaceFerret(x, y, bendShape)) {
+                        const score = this.calculateBendScore(x, y, bendShape);
+                        if (score > bestScore) {
+                            bestScore = score;
+                            bestX = x;
+                            bestY = y;
+                            bestBend = bendShape;
+                        }
+                    }
+                }
+            }
+            
+            // Also try positions slightly above current position for better gap filling
+            for (let y = Math.max(0, currentY - 2); y < currentY; y++) {
+                for (let x = 0; x < this.BOARD_WIDTH; x++) {
+                    if (this.canPlaceFerret(x, y, bendShape)) {
+                        const score = this.calculateBendScore(x, y, bendShape);
+                        if (score > bestScore) {
+                            bestScore = score;
+                            bestX = x;
+                            bestY = y;
+                            bestBend = bendShape;
+                        }
+                    }
+                }
+            }
+        }
+        
+        return { x: bestX, y: bestY, shape: bestBend };
+    }
+    
+    calculateFerretScore(x, y) {
+        let score = 0;
+        
+        // Check each position the ferret would occupy
+        for (let col = 0; col < this.currentPiece.shape[0].length; col++) {
+            const boardX = x + col;
+            const boardY = y;
+            
+            if (boardX >= 0 && boardX < this.BOARD_WIDTH && boardY >= 0 && boardY < this.BOARD_HEIGHT) {
+                // Bonus for filling empty spaces
+                if (this.board[boardY][boardX] === 0) {
+                    score += 10;
+                    
+                    // Extra bonus for filling gaps (spaces with blocks above)
+                    let hasBlocksAbove = false;
+                    for (let aboveY = boardY - 1; aboveY >= 0; aboveY--) {
+                        if (this.board[aboveY][boardX] !== 0) {
+                            hasBlocksAbove = true;
+                            break;
+                        }
+                    }
+                    if (hasBlocksAbove) {
+                        score += 20; // Extra points for filling gaps
+                    }
+                }
+                
+                // Bonus for being near other blocks (creating potential line clears)
+                if (boardY > 0 && this.board[boardY - 1][boardX] !== 0) {
+                    score += 5;
+                }
+                if (boardX > 0 && this.board[boardY][boardX - 1] !== 0) {
+                    score += 3;
+                }
+                if (boardX < this.BOARD_WIDTH - 1 && this.board[boardY][boardX + 1] !== 0) {
+                    score += 3;
+                }
+            }
+        }
+        
+        // Prefer lower positions (closer to bottom)
+        score += (this.BOARD_HEIGHT - y) * 2;
+        
+        return score;
+    }
+    
+    clearLines() {
+        let linesToClear = [];
+        
+        // Find lines to clear
+        for (let y = this.BOARD_HEIGHT - 1; y >= 0; y--) {
+            if (this.board[y].every(cell => cell !== 0)) {
+                linesToClear.push(y);
+            }
+        }
+        
+        if (linesToClear.length > 0) {
+            // Start line clear animation
+            this.lineClearAnimation.active = true;
+            this.lineClearAnimation.lines = linesToClear;
+            this.lineClearAnimation.progress = 0;
+            this.lineClearAnimation.outlineAlpha = 1;
+            this.lineClearAnimation.fadeAlpha = 1;
+        }
+    }
+    
+    updateLineClearAnimation() {
+        if (!this.lineClearAnimation.active) return;
+        
+        this.lineClearAnimation.progress++;
+        
+        if (this.lineClearAnimation.progress >= this.lineClearAnimation.duration) {
+            // Animation complete, actually clear the lines
+            this.completeLineClear();
+        } else {
+            // Update animation values
+            const progress = this.lineClearAnimation.progress / this.lineClearAnimation.duration;
+            
+            // Outline effect: start bright, then fade
+            if (progress < 0.3) {
+                this.lineClearAnimation.outlineAlpha = 1;
+            } else {
+                this.lineClearAnimation.outlineAlpha = 1 - ((progress - 0.3) / 0.7);
+            }
+            
+            // Fade effect: start normal, then fade out
+            if (progress < 0.5) {
+                this.lineClearAnimation.fadeAlpha = 1;
+            } else {
+                this.lineClearAnimation.fadeAlpha = 1 - ((progress - 0.5) / 0.5);
+            }
+        }
+    }
+    
+    completeLineClear() {
+        // Actually clear the lines
+        const linesToClear = this.lineClearAnimation.lines;
+        let linesCleared = linesToClear.length;
+        
+        // Sort lines from bottom to top to avoid index issues
+        linesToClear.sort((a, b) => b - a);
+        
+        for (let lineY of linesToClear) {
+            this.board.splice(lineY, 1);
+            this.board.unshift(new Array(this.BOARD_WIDTH).fill(0));
+        }
+        
+        // Update score and level
+        this.lines += linesCleared;
+        this.score += linesCleared * 100 * this.level;
+        this.level = Math.floor(this.lines / 10) + 1;
+        
+        // Calculate new speed based on difficulty
+        const baseSpeed = this.difficultySettings[document.getElementById('difficultySelect').value].initialSpeed;
+        this.dropInterval = Math.max(50, baseSpeed - (this.level - 1) * this.speedIncrease);
+        
+        this.updateScore();
+        
+        // Reset animation
+        this.lineClearAnimation.active = false;
+        this.lineClearAnimation.lines = [];
+        this.lineClearAnimation.progress = 0;
     }
     
     updateScore() {
@@ -387,6 +1302,7 @@ class Tetris {
         document.getElementById('difficultySelect').disabled = false;
         document.getElementById('ohDeerMode').disabled = false;
         document.getElementById('beeMode').disabled = false;
+        document.getElementById('ferretMode').disabled = false;
         
         this.showGameOver();
     }
@@ -423,6 +1339,15 @@ class Tetris {
             this.updateBees();
         }
         
+        // Update ferret animation and noodling
+        if (this.ferretMode) {
+            this.ferretAnimationFrame += this.ferretAnimationSpeed;
+            this.updateFerretNoodling();
+        }
+        
+        // Update line clear animation
+        this.updateLineClearAnimation();
+        
         if (this.dropTime >= this.dropInterval) {
             if (!this.movePiece(0, 1)) {
                 this.placePiece();
@@ -435,7 +1360,7 @@ class Tetris {
     }
     
     updateBees() {
-        // Spawn new bees
+        // Spawn new bees (reduced frequency)
         if (this.bees.length < this.maxBees && Math.random() < this.beeSpawnChance) {
             this.spawnBee();
         }
@@ -447,15 +1372,15 @@ class Tetris {
             bee.y += bee.vy;
             
             // Add some random movement
-            bee.vx += (Math.random() - 0.5) * 0.5;
-            bee.vy += (Math.random() - 0.5) * 0.5;
+            bee.vx += (Math.random() - 0.5) * 0.3; // Reduced randomness
+            bee.vy += (Math.random() - 0.5) * 0.3;
             
             // Keep bees within bounds
-            bee.vx = Math.max(-2, Math.min(2, bee.vx));
-            bee.vy = Math.max(-2, Math.min(2, bee.vy));
+            bee.vx = Math.max(-1.5, Math.min(1.5, bee.vx)); // Reduced speed
+            bee.vy = Math.max(-1.5, Math.min(1.5, bee.vy));
             
-            // Check if bee should fill a gap
-            if (this.shouldBeeFillGap(bee)) {
+            // Check if bee should fill a gap (only occasionally)
+            if (Math.random() < 0.1 && this.shouldBeeFillGap(bee)) { // 10% chance per frame
                 this.fillGapWithBee(bee);
                 this.bees.splice(i, 1);
             }
@@ -463,7 +1388,7 @@ class Tetris {
             // Remove bees that are out of bounds or too old
             if (bee.x < -10 || bee.x > this.canvas.width + 10 || 
                 bee.y < -10 || bee.y > this.canvas.height + 10 ||
-                bee.age > 300) {
+                bee.age > 400) { // Increased age limit
                 this.bees.splice(i, 1);
             }
             
@@ -525,10 +1450,33 @@ class Tetris {
         // Check if there's a gap (empty space with blocks above it)
         if (this.board[boardY][boardX] === 0) {
             // Check if there are blocks above this position
+            let hasBlocksAbove = false;
+            let gapSize = 0;
+            
             for (let y = boardY - 1; y >= 0; y--) {
                 if (this.board[y][boardX] !== 0) {
-                    return true; // Found a gap to fill
+                    hasBlocksAbove = true;
+                    break;
                 }
+                gapSize++;
+            }
+            
+            // Only fill if there are blocks above AND the gap is small (like a real bee would)
+            if (hasBlocksAbove && gapSize <= 3) {
+                // Additional check: make sure it's not a large open area
+                let surroundingBlocks = 0;
+                
+                // Check blocks to the left and right
+                if (boardX > 0 && this.board[boardY][boardX - 1] !== 0) surroundingBlocks++;
+                if (boardX < this.BOARD_WIDTH - 1 && this.board[boardY][boardX + 1] !== 0) surroundingBlocks++;
+                
+                // Check blocks above (within 2 spaces)
+                for (let y = boardY - 1; y >= Math.max(0, boardY - 3); y--) {
+                    if (this.board[y][boardX] !== 0) surroundingBlocks++;
+                }
+                
+                // Only fill if there are enough surrounding blocks (it's a small hole, not open space)
+                return surroundingBlocks >= 2;
             }
         }
         
@@ -539,8 +1487,8 @@ class Tetris {
         const boardX = Math.floor(bee.x / this.BLOCK_SIZE);
         const boardY = Math.floor(bee.y / this.BLOCK_SIZE);
         
-        // Fill the gap with a bee-colored block
-        this.board[boardY][boardX] = '#FFD700'; // Golden yellow for bees
+        // Fill the gap with a honey-colored block
+        this.board[boardY][boardX] = 'honey'; // Special honey color identifier
         
         // Add some points for filling gaps
         this.score += 5;
@@ -584,6 +1532,45 @@ class Tetris {
                 }
             }
         }
+        
+        // Draw line clear animation
+        if (this.lineClearAnimation.active) {
+            this.drawLineClearAnimation();
+        }
+    }
+    
+    drawLineClearAnimation() {
+        for (let lineY of this.lineClearAnimation.lines) {
+            // Draw outline effect
+            this.ctx.strokeStyle = `rgba(255, 255, 255, ${this.lineClearAnimation.outlineAlpha})`;
+            this.ctx.lineWidth = 3;
+            this.ctx.strokeRect(
+                0, 
+                lineY * this.BLOCK_SIZE, 
+                this.BOARD_WIDTH * this.BLOCK_SIZE, 
+                this.BLOCK_SIZE
+            );
+            
+            // Draw fade effect on blocks
+            for (let x = 0; x < this.BOARD_WIDTH; x++) {
+                if (this.board[lineY][x]) {
+                    const blockX = x * this.BLOCK_SIZE + 1;
+                    const blockY = lineY * this.BLOCK_SIZE + 1;
+                    const blockSize = this.BLOCK_SIZE - 2;
+                    
+                    // Create a fade effect by drawing a semi-transparent overlay
+                    this.ctx.fillStyle = `rgba(255, 255, 255, ${1 - this.lineClearAnimation.fadeAlpha})`;
+                    this.ctx.fillRect(blockX, blockY, blockSize, blockSize);
+                    
+                    // Add a glow effect
+                    this.ctx.shadowColor = 'rgba(255, 255, 255, 0.8)';
+                    this.ctx.shadowBlur = 10 * this.lineClearAnimation.outlineAlpha;
+                    this.ctx.fillStyle = `rgba(255, 255, 255, ${this.lineClearAnimation.outlineAlpha * 0.3})`;
+                    this.ctx.fillRect(blockX - 2, blockY - 2, blockSize + 4, blockSize + 4);
+                    this.ctx.shadowBlur = 0; // Reset shadow
+                }
+            }
+        }
     }
     
     drawCurrentPiece() {
@@ -600,6 +1587,11 @@ class Tetris {
                         // Draw animated deer emoji on crazy blocks
                         if (this.currentPiece.isCrazy && this.ohDeerMode) {
                             this.drawDeerEmoji(x, y);
+                        }
+                        
+                        // Draw animated ferret emoji on ferret pieces
+                        if (this.currentPiece.isFerret && this.ferretMode) {
+                            this.drawFerretEmoji(x, y);
                         }
                     }
                 }
@@ -635,6 +1627,19 @@ class Tetris {
     }
     
     drawBlock(x, y, color) {
+        // Check if this is a ferret block
+        const isFerretBlock = color === this.ferretPiece.color;
+        
+        if (isFerretBlock) {
+            this.drawFerretBlock(x, y);
+        } else if (color === 'honey') {
+            this.drawHoneyBlock(x, y);
+        } else {
+            this.drawNormalBlock(x, y, color);
+        }
+    }
+    
+    drawNormalBlock(x, y, color) {
         this.ctx.fillStyle = color;
         this.ctx.fillRect(x * this.BLOCK_SIZE + 1, y * this.BLOCK_SIZE + 1, 
                          this.BLOCK_SIZE - 2, this.BLOCK_SIZE - 2);
@@ -652,6 +1657,126 @@ class Tetris {
                          2, this.BLOCK_SIZE - 2);
         this.ctx.fillRect(x * this.BLOCK_SIZE + 1, y * this.BLOCK_SIZE + this.BLOCK_SIZE - 3, 
                          this.BLOCK_SIZE - 2, 2);
+    }
+    
+    drawFerretBlock(x, y) {
+        const blockX = x * this.BLOCK_SIZE + 1;
+        const blockY = y * this.BLOCK_SIZE + 1;
+        const blockSize = this.BLOCK_SIZE - 2;
+        
+        // Base ferret color with gradient
+        const gradient = this.ctx.createLinearGradient(blockX, blockY, blockX + blockSize, blockY + blockSize);
+        gradient.addColorStop(0, '#8B4513'); // Brown
+        gradient.addColorStop(0.5, '#A0522D'); // Saddle brown
+        gradient.addColorStop(1, '#654321'); // Dark brown
+        
+        this.ctx.fillStyle = gradient;
+        this.ctx.fillRect(blockX, blockY, blockSize, blockSize);
+        
+        // Add ferret fur texture pattern
+        this.ctx.strokeStyle = '#654321';
+        this.ctx.lineWidth = 1;
+        
+        // Draw fur lines
+        for (let i = 0; i < 3; i++) {
+            const offset = (i * blockSize / 3) + 2;
+            this.ctx.beginPath();
+            this.ctx.moveTo(blockX + 2, blockY + offset);
+            this.ctx.lineTo(blockX + blockSize - 2, blockY + offset);
+            this.ctx.stroke();
+        }
+        
+        // Add animated sparkle effect
+        if (this.ferretMode) {
+            const sparkleOffset = Math.sin(this.ferretAnimationFrame + x * 0.5 + y * 0.3) * 2;
+            this.ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+            this.ctx.fillRect(blockX + 4 + sparkleOffset, blockY + 4, 2, 2);
+            this.ctx.fillRect(blockX + blockSize - 6 - sparkleOffset, blockY + blockSize - 6, 2, 2);
+        }
+        
+        // Enhanced highlight for ferret blocks
+        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+        this.ctx.fillRect(blockX, blockY, blockSize, 3);
+        this.ctx.fillRect(blockX, blockY, 3, blockSize);
+        
+        // Enhanced shadow for ferret blocks
+        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+        this.ctx.fillRect(blockX + blockSize - 3, blockY, 3, blockSize);
+        this.ctx.fillRect(blockX, blockY + blockSize - 3, blockSize, 3);
+        
+        // Add subtle glow effect
+        this.ctx.shadowColor = '#8B4513';
+        this.ctx.shadowBlur = 3;
+        this.ctx.strokeRect(blockX, blockY, blockSize, blockSize);
+        this.ctx.shadowBlur = 0;
+    }
+    
+    drawHoneyBlock(x, y) {
+        const blockX = x * this.BLOCK_SIZE + 1;
+        const blockY = y * this.BLOCK_SIZE + 1;
+        const blockSize = this.BLOCK_SIZE - 2;
+        
+        // Create honey gradient
+        const gradient = this.ctx.createLinearGradient(blockX, blockY, blockX + blockSize, blockY + blockSize);
+        gradient.addColorStop(0, '#FFD700'); // Golden yellow
+        gradient.addColorStop(0.3, '#FFA500'); // Orange
+        gradient.addColorStop(0.7, '#FF8C00'); // Dark orange
+        gradient.addColorStop(1, '#DAA520'); // Goldenrod
+        
+        this.ctx.fillStyle = gradient;
+        this.ctx.fillRect(blockX, blockY, blockSize, blockSize);
+        
+        // Add honey texture pattern (wavy lines)
+        this.ctx.strokeStyle = '#B8860B';
+        this.ctx.lineWidth = 1;
+        
+        // Draw wavy honey texture
+        for (let i = 0; i < 3; i++) {
+            const offset = (i * blockSize / 3) + 2;
+            this.ctx.beginPath();
+            this.ctx.moveTo(blockX + 2, blockY + offset);
+            
+            // Create wavy pattern
+            for (let j = 0; j < blockSize - 4; j += 4) {
+                const waveOffset = Math.sin(j * 0.5) * 2;
+                this.ctx.lineTo(blockX + 2 + j, blockY + offset + waveOffset);
+            }
+            this.ctx.stroke();
+        }
+        
+        // Add highlight
+        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+        this.ctx.fillRect(blockX, blockY, blockSize, 3);
+        this.ctx.fillRect(blockX, blockY, 3, blockSize);
+        
+        // Add shadow
+        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+        this.ctx.fillRect(blockX + blockSize - 3, blockY, 3, blockSize);
+        this.ctx.fillRect(blockX, blockY + blockSize - 3, blockSize, 3);
+        
+        // Draw bee emoji
+        const centerX = blockX + blockSize / 2;
+        const centerY = blockY + blockSize / 2;
+        
+        // Animate bee emoji with a gentle floating effect
+        const floatOffset = Math.sin(this.beeAnimationFrame + x * 0.2 + y * 0.3) * 1;
+        const beeY = centerY + floatOffset;
+        
+        this.ctx.font = '12px Arial';
+        this.ctx.textAlign = 'center';
+        this.ctx.textBaseline = 'middle';
+        
+        // Add glow effect for bee emoji
+        this.ctx.shadowColor = '#FFD700';
+        this.ctx.shadowBlur = 3;
+        this.ctx.fillText('🐝', centerX, beeY);
+        this.ctx.shadowBlur = 0;
+        
+        // Add subtle glow effect for the whole block
+        this.ctx.shadowColor = '#FFD700';
+        this.ctx.shadowBlur = 2;
+        this.ctx.strokeRect(blockX, blockY, blockSize, blockSize);
+        this.ctx.shadowBlur = 0;
     }
     
     drawDeerEmoji(x, y) {
@@ -672,6 +1797,27 @@ class Tetris {
         this.ctx.shadowColor = '#FFD700';
         this.ctx.shadowBlur = 5;
         this.ctx.fillText('🦌', centerX, deerY);
+        this.ctx.shadowBlur = 0;
+    }
+    
+    drawFerretEmoji(x, y) {
+        const centerX = x * this.BLOCK_SIZE + this.BLOCK_SIZE / 2;
+        const centerY = y * this.BLOCK_SIZE + this.BLOCK_SIZE / 2;
+        
+        // Animate ferret with a wiggling effect
+        const wiggleOffset = Math.sin(this.ferretAnimationFrame + x * 0.3) * 2;
+        const ferretX = centerX + wiggleOffset;
+        const ferretY = centerY;
+        
+        // Draw ferret emoji
+        this.ctx.font = '14px Arial';
+        this.ctx.textAlign = 'center';
+        this.ctx.textBaseline = 'middle';
+        
+        // Add glow effect
+        this.ctx.shadowColor = '#8B4513';
+        this.ctx.shadowBlur = 4;
+        this.ctx.fillText('🦦', ferretX, ferretY);
         this.ctx.shadowBlur = 0;
     }
     
