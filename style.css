@@ -309,17 +309,16 @@ body {
         overflow: auto;
     }
     
-    /* Prevent viewport changes when game is running on mobile */
+    /* Lock viewport when game is running on mobile */
     body.game-running {
         overflow: hidden;
         position: fixed;
-        width: 100vw;
-        height: 100vh;
+        width: 100%;
+        height: 100%;
         top: 0;
         left: 0;
         padding: 0;
         margin: 0;
-        touch-action: none;
     }
     
     body.game-running .game-container {
@@ -327,32 +326,7 @@ body {
         overflow: hidden;
         padding: 10px;
         margin: 0;
-        position: relative;
     }
-    
-    /* Prevent zoom and scaling on mobile */
-body.game-running * {
-    touch-action: none;
-}
-
-/* Ensure stable mobile layout */
-@media (max-width: 768px) {
-    html, body {
-        -webkit-text-size-adjust: 100%;
-        -ms-text-size-adjust: 100%;
-        text-size-adjust: 100%;
-    }
-    
-    body.game-running {
-        -webkit-overflow-scrolling: touch;
-    }
-    
-    #gameCanvas {
-        image-rendering: -webkit-optimize-contrast;
-        image-rendering: crisp-edges;
-        image-rendering: pixelated;
-    }
-}
     
     .game-container {
         padding: 15px;
