@@ -245,7 +245,12 @@ body {
     border-radius: 15px;
     padding: 15px;
     border: 2px solid #00d4ff;
-    display: none; /* Hidden by default */
+    display: none !important; /* Hidden by default with !important */
+}
+
+/* Force hide mobile controls by default */
+#mobileControls {
+    display: none !important;
 }
 
 .touch-controls {
@@ -365,6 +370,11 @@ body {
         display: none !important;
         bottom: 10px;
         padding: 10px;
+    }
+    
+    /* Ensure mobile controls are hidden by default on mobile */
+    .mobile-controls:not(.game-running) {
+        display: none !important;
     }
     
     .touch-btn {
@@ -494,7 +504,8 @@ body {
 }
 
 /* Show mobile controls when game is running */
-.mobile-controls.game-running {
+.mobile-controls.game-running,
+#mobileControls.game-running {
     display: block !important;
 }
 

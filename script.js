@@ -99,6 +99,12 @@ class WildBlocks {
         this.createBoard();
         this.createPieces();
         this.setupEventListeners();
+        
+        // Ensure mobile controls are hidden on initialization
+        if (this.isMobile && this.mobileControls) {
+            this.mobileControls.classList.remove('game-running');
+        }
+        
         this.draw();
     }
     
@@ -277,6 +283,11 @@ class WildBlocks {
         // Hide desktop controls on mobile
         if (this.desktopControls) {
             this.desktopControls.style.display = 'none';
+        }
+        
+        // Ensure mobile controls are hidden by default
+        if (this.mobileControls) {
+            this.mobileControls.classList.remove('game-running');
         }
         
         // Touch event listeners
