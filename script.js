@@ -301,8 +301,9 @@ class WildBlocks {
             }
         }, { passive: false });
         
-        document.addEventListener('touchend', (e) => {
-            e.preventDefault(); // Prevent double-tap zoom
+        // Only prevent double-tap zoom on the canvas, not everywhere
+        this.canvas.addEventListener('touchend', (e) => {
+            e.preventDefault(); // Prevent double-tap zoom on canvas only
         }, { passive: false });
         
         // Touch event listeners
@@ -444,42 +445,7 @@ class WildBlocks {
         console.log(`Mobile canvas: ${newWidth}x${newHeight}, block size: ${blockSize}, viewport: ${viewportWidth}x${viewportHeight}`);
     }
     
-    lockMobileViewport() {
-        // Store original viewport height
-        this.originalViewportHeight = window.innerHeight;
-        
-        // Set viewport meta tag to prevent scaling
-        const viewportMeta = document.querySelector('meta[name="viewport"]');
-        if (viewportMeta) {
-            viewportMeta.setAttribute('content', 'width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover');
-        }
-        
-        // Update canvas size with locked dimensions
-        this.updateMobileCanvasSize();
-        
-        // Prevent scroll events
-        document.addEventListener('touchmove', this.preventDefault, { passive: false });
-        document.addEventListener('scroll', this.preventDefault, { passive: false });
-    }
-    
-    unlockMobileViewport() {
-        // Restore original viewport meta tag
-        const viewportMeta = document.querySelector('meta[name="viewport"]');
-        if (viewportMeta) {
-            viewportMeta.setAttribute('content', 'width=device-width, initial-scale=1.0, user-scalable=no');
-        }
-        
-        // Remove scroll prevention
-        document.removeEventListener('touchmove', this.preventDefault);
-        document.removeEventListener('scroll', this.preventDefault);
-        
-        // Reset canvas size
-        this.handleResize();
-    }
-    
-    preventDefault(e) {
-        e.preventDefault();
-    }
+
     
     handleKeyPress(e) {
         if (!this.gameRunning || this.gamePaused || this.gameOver) return;
@@ -516,10 +482,10 @@ class WildBlocks {
         this.gamePaused = false;
         this.gameOver = false;
         
-        // Lock viewport on mobile when game starts
+        // Show mobile controls when game starts
         if (this.isMobile) {
             document.body.classList.add('game-running');
-            this.lockMobileViewport();
+            this.updateMobileCanvasSize();
         }
         
         // Get selected difficulty
@@ -571,19 +537,17 @@ class WildBlocks {
         this.gamePaused = !this.gamePaused;
         document.getElementById('pauseBtn').textContent = this.gamePaused ? 'Resume' : 'Pause';
         
-        // Handle viewport and mobile controls based on pause state
+        // Handle mobile controls based on pause state
         if (this.isMobile) {
             if (this.gamePaused) {
-                // Unlock viewport when paused
+                // Hide mobile controls when paused
                 document.body.classList.remove('game-running');
-                this.unlockMobileViewport();
                 if (this.mobileControls) {
                     this.mobileControls.classList.remove('game-running');
                 }
             } else {
-                // Lock viewport when resuming
+                // Show mobile controls when resuming
                 document.body.classList.add('game-running');
-                this.lockMobileViewport();
                 if (this.mobileControls) {
                     this.mobileControls.classList.add('game-running');
                 }
@@ -1587,10 +1551,9 @@ class WildBlocks {
         this.gameRunning = false;
         this.gameOver = true;
         
-        // Unlock viewport on mobile when game ends
+        // Hide mobile controls when game ends
         if (this.isMobile) {
             document.body.classList.remove('game-running');
-            this.unlockMobileViewport();
         }
         
         document.getElementById('startBtn').style.display = 'block';
