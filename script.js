@@ -421,15 +421,17 @@ class WildBlocks {
         const viewportHeight = window.innerHeight;
         
         // Calculate available space for the canvas
-        // Account for mobile controls overlay at the bottom
-        const padding = 20; // Reduced padding
-        const uiHeight = 100; // Reduced UI height
-        const mobileControlsHeight = 120; // Height of mobile controls overlay
+        // Account for header, side panel, and mobile controls
+        const padding = 10; // Reduced padding
+        const headerHeight = 50; // Header height (title + score board)
+        const sidePanelHeight = 70; // Side panel height (next piece, controls, etc.)
+        const mobileControlsHeight = 90; // Height of mobile controls overlay
+        const gap = 8; // Gap between elements
+        
         const maxWidth = viewportWidth - padding;
-        const maxHeight = viewportHeight - uiHeight - mobileControlsHeight;
+        const maxHeight = viewportHeight - headerHeight - sidePanelHeight - mobileControlsHeight - gap;
         
         // Calculate block size based on available space
-        // Calculate block size based on width and height
         let blockSizeByWidth = Math.floor(maxWidth / this.BOARD_WIDTH);
         let blockSizeByHeight = Math.floor(maxHeight / this.BOARD_HEIGHT);
         
@@ -437,15 +439,15 @@ class WildBlocks {
         let blockSize = Math.min(blockSizeByWidth, blockSizeByHeight);
         
         // Ensure minimum block size for visibility
-        const minBlockSize = 18; // Increased minimum block size
+        const minBlockSize = 16; // Minimum block size
         if (blockSize < minBlockSize) {
             blockSize = minBlockSize;
         }
         
         // For very small screens, try to use more space
         if (viewportWidth < 400) {
-            // Use 90% of available width
-            const aggressiveWidth = Math.floor(viewportWidth * 0.9);
+            // Use 95% of available width
+            const aggressiveWidth = Math.floor(viewportWidth * 0.95);
             const aggressiveBlockSize = Math.floor(aggressiveWidth / this.BOARD_WIDTH);
             if (aggressiveBlockSize >= minBlockSize) {
                 blockSize = aggressiveBlockSize;
@@ -464,6 +466,28 @@ class WildBlocks {
         this.BLOCK_SIZE = blockSize;
         
         console.log(`Mobile canvas: ${newWidth}x${newHeight}, block size: ${blockSize}, viewport: ${viewportWidth}x${viewportHeight}`);
+    }
+    
+    scrollGameIntoView() {
+        // Add a small delay to ensure layout is updated
+        setTimeout(() => {
+            // Scroll the game container to the top to ensure everything is visible
+            const gameContainer = document.querySelector('.game-container');
+            if (gameContainer) {
+                // Use smooth scrolling to the top
+                gameContainer.scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'start',
+                    inline: 'nearest'
+                });
+                
+                // Also scroll the window to the top as a fallback
+                window.scrollTo({
+                    top: 0,
+                    behavior: 'smooth'
+                });
+            }
+        }, 100);
     }
     
 
@@ -507,6 +531,9 @@ class WildBlocks {
         if (this.isMobile) {
             document.body.classList.add('game-running');
             this.updateMobileCanvasSize();
+            
+            // Scroll the game board into view and snap to fit
+            this.scrollGameIntoView();
         }
         
         // Get selected difficulty
@@ -1908,7 +1935,8 @@ class WildBlocks {
         
         if (!this.nextPiece) return;
         
-        const blockSize = 20;
+        // Use responsive block size for next piece
+        const blockSize = this.isMobile ? 12 : 20;
         const offsetX = (this.nextCanvas.width - this.nextPiece.shape[0].length * blockSize) / 2;
         const offsetY = (this.nextCanvas.height - this.nextPiece.shape.length * blockSize) / 2;
         
