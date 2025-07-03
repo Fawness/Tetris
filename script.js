@@ -385,24 +385,42 @@ class WildBlocks {
         const viewportHeight = window.innerHeight;
         
         // Calculate available space for the canvas
-        const padding = 40; // Account for padding and UI elements
-        const maxWidth = Math.min(viewportWidth - padding, 300);
-        const maxHeight = Math.min(viewportHeight - 200, 600);
+        // Use more of the available space on mobile
+        const padding = 20; // Reduced padding
+        const uiHeight = 100; // Reduced UI height
+        const maxWidth = viewportWidth - padding;
+        const maxHeight = viewportHeight - uiHeight;
         
-        // Maintain aspect ratio
+        // Calculate block size based on available space
+        // Try to fit the board as large as possible while maintaining aspect ratio
         const aspectRatio = this.BOARD_WIDTH / this.BOARD_HEIGHT;
-        let newWidth = maxWidth;
-        let newHeight = newWidth / aspectRatio;
         
-        if (newHeight > maxHeight) {
-            newHeight = maxHeight;
-            newWidth = newHeight * aspectRatio;
+        // Calculate block size based on width and height
+        let blockSizeByWidth = Math.floor(maxWidth / this.BOARD_WIDTH);
+        let blockSizeByHeight = Math.floor(maxHeight / this.BOARD_HEIGHT);
+        
+        // Use the smaller of the two to ensure the board fits
+        let blockSize = Math.min(blockSizeByWidth, blockSizeByHeight);
+        
+        // Ensure minimum block size for visibility
+        const minBlockSize = 18; // Increased minimum block size
+        if (blockSize < minBlockSize) {
+            blockSize = minBlockSize;
         }
         
-        // Ensure the width is a multiple of BOARD_WIDTH for perfect grid alignment
-        const blockSize = Math.floor(newWidth / this.BOARD_WIDTH);
-        newWidth = blockSize * this.BOARD_WIDTH;
-        newHeight = blockSize * this.BOARD_HEIGHT;
+        // For very small screens, try to use more space
+        if (viewportWidth < 400) {
+            // Use 90% of available width
+            const aggressiveWidth = Math.floor(viewportWidth * 0.9);
+            const aggressiveBlockSize = Math.floor(aggressiveWidth / this.BOARD_WIDTH);
+            if (aggressiveBlockSize >= minBlockSize) {
+                blockSize = aggressiveBlockSize;
+            }
+        }
+        
+        // Calculate final canvas dimensions
+        const newWidth = blockSize * this.BOARD_WIDTH;
+        const newHeight = blockSize * this.BOARD_HEIGHT;
         
         // Set canvas size
         this.canvas.style.width = newWidth + 'px';
@@ -410,6 +428,8 @@ class WildBlocks {
         
         // Update block size for drawing calculations
         this.BLOCK_SIZE = blockSize;
+        
+        console.log(`Mobile canvas: ${newWidth}x${newHeight}, block size: ${blockSize}, viewport: ${viewportWidth}x${viewportHeight}`);
     }
     
     lockMobileViewport() {

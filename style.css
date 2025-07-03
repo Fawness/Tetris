@@ -329,7 +329,7 @@ body {
     }
     
     .game-container {
-        padding: 15px;
+        padding: 10px;
         margin: 0;
         border-radius: 10px;
         max-width: 100%;
@@ -337,19 +337,20 @@ body {
     }
     
     .header h1 {
-        font-size: 1.8rem;
-        letter-spacing: 2px;
+        font-size: 1.5rem;
+        letter-spacing: 1px;
+        margin-bottom: 5px;
     }
     
     .game-area {
         flex-direction: column;
         align-items: center;
-        gap: 15px;
+        gap: 10px;
     }
     
     #gameCanvas {
-        width: 100%;
-        max-width: 300px;
+        width: auto;
+        max-width: none;
         height: auto;
     }
     
@@ -357,28 +358,29 @@ body {
         flex-direction: row;
         flex-wrap: wrap;
         justify-content: center;
-        gap: 15px;
+        gap: 10px;
         min-width: auto;
         width: 100%;
     }
     
     .next-piece, .controls, .difficulty-selector, .game-mode-selector {
         flex: 1;
-        min-width: 140px;
-        max-width: 200px;
+        min-width: 120px;
+        max-width: 160px;
     }
     
     .score-board {
-        flex-direction: column;
-        gap: 10px;
+        flex-direction: row;
+        gap: 15px;
+        justify-content: center;
     }
     
     .score-item {
-        padding: 8px 12px;
+        padding: 5px 8px;
     }
     
     .score-item .value {
-        font-size: 1.2rem;
+        font-size: 1rem;
     }
     
     .desktop-controls {
@@ -411,21 +413,41 @@ body {
 
 @media (max-width: 480px) {
     .header h1 {
-        font-size: 1.5rem;
+        font-size: 1.3rem;
+        margin-bottom: 3px;
     }
     
     .game-container {
-        padding: 10px;
+        padding: 5px;
+    }
+    
+    .game-area {
+        gap: 5px;
     }
     
     .side-panel {
-        flex-direction: column;
-        align-items: center;
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 5px;
     }
     
     .next-piece, .controls, .difficulty-selector, .game-mode-selector {
-        width: 100%;
-        max-width: 280px;
+        flex: 1;
+        min-width: 100px;
+        max-width: 140px;
+        padding: 5px;
+    }
+    
+    .score-board {
+        gap: 10px;
+    }
+    
+    .score-item {
+        padding: 3px 6px;
+    }
+    
+    .score-item .value {
+        font-size: 0.9rem;
     }
     
     .touch-btn {
