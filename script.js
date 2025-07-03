@@ -7,7 +7,7 @@ class WildBlocks {
         
         this.BOARD_WIDTH = 10;
         this.BOARD_HEIGHT = 20;
-        this.BLOCK_SIZE = 30;
+        this.BLOCK_SIZE = 30; // Back to responsive sizing
         
         this.board = [];
         this.currentPiece = null;
@@ -99,6 +99,11 @@ class WildBlocks {
         this.createBoard();
         this.createPieces();
         this.setupEventListeners();
+        
+        // Set canvas size for desktop
+        if (!this.isMobile) {
+            this.updateDesktopCanvasSize();
+        }
         
         // Ensure mobile controls are hidden on initialization
         if (this.isMobile && this.mobileControls) {
@@ -260,8 +265,10 @@ class WildBlocks {
     }
     
     detectMobile() {
-        return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
                (window.innerWidth <= 768 && window.innerHeight <= 1024);
+        console.log(`Mobile detection: ${isMobile}, window size: ${window.innerWidth}x${window.innerHeight}`);
+        return isMobile;
     }
     
     setupEventListeners() {
@@ -388,7 +395,51 @@ class WildBlocks {
         // Adjust canvas size for mobile
         if (this.isMobile) {
             this.updateMobileCanvasSize();
+        } else {
+            // Responsive desktop canvas sizing
+            this.updateDesktopCanvasSize();
         }
+    }
+    
+    updateDesktopCanvasSize() {
+        // Calculate available space for the canvas
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+        
+        // Reserve space for side panel and margins
+        const sidePanelWidth = 280; // Side panel width + gap
+        const headerHeight = 120; // Header + margins
+        const padding = 80; // Overall padding
+        
+        const maxWidth = viewportWidth - sidePanelWidth - padding;
+        const maxHeight = viewportHeight - headerHeight - padding;
+        
+        // Calculate block size based on available space
+        const blockSizeByWidth = Math.floor(maxWidth / this.BOARD_WIDTH);
+        const blockSizeByHeight = Math.floor(maxHeight / this.BOARD_HEIGHT);
+        
+        // Use the smaller of the two to ensure the board fits
+        let blockSize = Math.min(blockSizeByWidth, blockSizeByHeight);
+        
+        // Ensure minimum and maximum block sizes
+        const minBlockSize = 25;
+        const maxBlockSize = 40;
+        blockSize = Math.max(minBlockSize, Math.min(maxBlockSize, blockSize));
+        
+        // Calculate final canvas dimensions - EXACTLY match the game grid
+        const newWidth = blockSize * this.BOARD_WIDTH;
+        const newHeight = blockSize * this.BOARD_HEIGHT;
+        
+        // Set canvas size - both internal and display size must match
+        this.canvas.width = newWidth;
+        this.canvas.height = newHeight;
+        this.canvas.style.width = newWidth + 'px';
+        this.canvas.style.height = newHeight + 'px';
+        
+        // Update block size for drawing calculations
+        this.BLOCK_SIZE = blockSize;
+        
+        console.log(`Desktop canvas: ${newWidth}x${newHeight}, block size: ${blockSize}, board: ${this.BOARD_WIDTH}x${this.BOARD_HEIGHT}`);
     }
     
     updateMobileCanvasSize() {
@@ -2123,7 +2174,7 @@ class WildBlocks {
             // Ensure block size is always a whole number for perfect grid alignment
             return Math.floor(this.BLOCK_SIZE);
         }
-        return 30;
+        return this.BLOCK_SIZE; // Use the actual calculated block size for desktop
     }
     
     drawNormalBlock(x, y, color) {
