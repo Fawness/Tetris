@@ -22,6 +22,7 @@ class WildBlocks {
         this.dropTime = 0;
         this.dropInterval = 1000;
         this.lastTime = 0;
+        this.resizeTimeout = null;
         
         // Mobile detection and settings
         this.isMobile = this.detectMobile();
@@ -274,79 +275,48 @@ class WildBlocks {
             this.mobileControls.classList.remove('game-running');
         }
         
-        // Prevent touch zoom and other unwanted behaviors
-        document.addEventListener('touchstart', (e) => {
+        // Prevent touch zoom and other unwanted behaviors - more targeted approach
+        this.canvas.addEventListener('touchstart', (e) => {
             if (e.touches.length > 1) {
-                e.preventDefault(); // Prevent pinch zoom
+                e.preventDefault(); // Prevent pinch zoom on canvas only
             }
         }, { passive: false });
         
-        // Only prevent double-tap zoom on the canvas, not everywhere
+        // Prevent double-tap zoom on canvas only
         this.canvas.addEventListener('touchend', (e) => {
             e.preventDefault(); // Prevent double-tap zoom on canvas only
         }, { passive: false });
         
-        // Touch event listeners
-        document.getElementById('leftBtn').addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            this.handleTouchMove(-1, 0);
-        });
+        // Touch event listeners with better handling
+        const setupTouchButton = (id, handler) => {
+            const button = document.getElementById(id);
+            if (button) {
+                // Remove any existing listeners to prevent duplicates
+                button.removeEventListener('touchstart', handler);
+                button.removeEventListener('mousedown', handler);
+                
+                // Add touch listener
+                button.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handler(e);
+                }, { passive: false });
+                
+                // Add mouse listener for testing
+                button.addEventListener('mousedown', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handler(e);
+                });
+            }
+        };
         
-        document.getElementById('rightBtn').addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            this.handleTouchMove(1, 0);
-        });
-        
-        document.getElementById('downBtn').addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            this.handleTouchMove(0, 1);
-        });
-        
-        document.getElementById('rotateBtn').addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            this.handleTouchRotate();
-        });
-        
-        document.getElementById('hardDropBtn').addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            this.handleTouchHardDrop();
-        });
-        
-        document.getElementById('pauseBtnMobile').addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            this.togglePause();
-        });
-        
-        // Mouse events for desktop testing
-        document.getElementById('leftBtn').addEventListener('mousedown', (e) => {
-            e.preventDefault();
-            this.handleTouchMove(-1, 0);
-        });
-        
-        document.getElementById('rightBtn').addEventListener('mousedown', (e) => {
-            e.preventDefault();
-            this.handleTouchMove(1, 0);
-        });
-        
-        document.getElementById('downBtn').addEventListener('mousedown', (e) => {
-            e.preventDefault();
-            this.handleTouchMove(0, 1);
-        });
-        
-        document.getElementById('rotateBtn').addEventListener('mousedown', (e) => {
-            e.preventDefault();
-            this.handleTouchRotate();
-        });
-        
-        document.getElementById('hardDropBtn').addEventListener('mousedown', (e) => {
-            e.preventDefault();
-            this.handleTouchHardDrop();
-        });
-        
-        document.getElementById('pauseBtnMobile').addEventListener('mousedown', (e) => {
-            e.preventDefault();
-            this.togglePause();
-        });
+        setupTouchButton('leftBtn', () => this.handleTouchMove(-1, 0));
+        setupTouchButton('rightBtn', () => this.handleTouchMove(1, 0));
+        setupTouchButton('downBtn', () => this.handleTouchMove(0, 1));
+        setupTouchButton('rotateBtn', () => this.handleTouchRotate());
+        setupTouchButton('hardDropBtn', () => this.handleTouchHardDrop());
+        setupTouchButton('pauseBtnMobile', () => this.togglePause());
     }
     
     handleTouchMove(dx, dy) {
@@ -365,13 +335,25 @@ class WildBlocks {
     }
     
     handleResize() {
-        // Adjust canvas size for mobile
-        if (this.isMobile) {
-            this.updateMobileCanvasSize();
-        } else {
-            // Responsive desktop canvas sizing
-            this.updateDesktopCanvasSize();
+        // Debounce resize events to prevent excessive updates
+        if (this.resizeTimeout) {
+            clearTimeout(this.resizeTimeout);
         }
+        
+        this.resizeTimeout = setTimeout(() => {
+            // Adjust canvas size for mobile
+            if (this.isMobile) {
+                this.updateMobileCanvasSize();
+            } else {
+                // Responsive desktop canvas sizing
+                this.updateDesktopCanvasSize();
+            }
+            
+            // Redraw to ensure everything looks correct
+            if (this.gameRunning) {
+                this.draw();
+            }
+        }, 100); // 100ms debounce
     }
     
     updateDesktopCanvasSize() {
@@ -423,10 +405,10 @@ class WildBlocks {
         // Calculate available space for the canvas
         // Account for header, side panel, and mobile controls
         const padding = 10; // Reduced padding
-        const headerHeight = 50; // Header height (title + score board)
-        const sidePanelHeight = 70; // Side panel height (next piece, controls, etc.)
-        const mobileControlsHeight = 90; // Height of mobile controls overlay
-        const gap = 8; // Gap between elements
+        const headerHeight = 60; // Header height (title + score board)
+        const sidePanelHeight = 80; // Side panel height (next piece, controls, etc.)
+        const mobileControlsHeight = 100; // Height of mobile controls overlay
+        const gap = 10; // Gap between elements
         
         const maxWidth = viewportWidth - padding;
         const maxHeight = viewportHeight - headerHeight - sidePanelHeight - mobileControlsHeight - gap;
@@ -439,15 +421,15 @@ class WildBlocks {
         let blockSize = Math.min(blockSizeByWidth, blockSizeByHeight);
         
         // Ensure minimum block size for visibility
-        const minBlockSize = 16; // Minimum block size
+        const minBlockSize = 18; // Slightly larger minimum for better visibility
         if (blockSize < minBlockSize) {
             blockSize = minBlockSize;
         }
         
-        // For very small screens, try to use more space
+        // For very small screens, try to use more space but be more conservative
         if (viewportWidth < 400) {
-            // Use 95% of available width
-            const aggressiveWidth = Math.floor(viewportWidth * 0.95);
+            // Use 90% of available width instead of 95% to prevent overlap
+            const aggressiveWidth = Math.floor(viewportWidth * 0.9);
             const aggressiveBlockSize = Math.floor(aggressiveWidth / this.BOARD_WIDTH);
             if (aggressiveBlockSize >= minBlockSize) {
                 blockSize = aggressiveBlockSize;
@@ -458,7 +440,9 @@ class WildBlocks {
         const newWidth = blockSize * this.BOARD_WIDTH;
         const newHeight = blockSize * this.BOARD_HEIGHT;
         
-        // Set canvas size
+        // Set canvas size - both internal and display size must match
+        this.canvas.width = newWidth;
+        this.canvas.height = newHeight;
         this.canvas.style.width = newWidth + 'px';
         this.canvas.style.height = newHeight + 'px';
         
@@ -486,6 +470,15 @@ class WildBlocks {
                     top: 0,
                     behavior: 'smooth'
                 });
+            }
+            
+            // Ensure mobile controls are properly positioned
+            if (this.isMobile && this.mobileControls) {
+                // Force a reflow to ensure proper positioning
+                this.mobileControls.style.display = 'none';
+                setTimeout(() => {
+                    this.mobileControls.style.display = 'block';
+                }, 10);
             }
         }, 100);
     }
@@ -1936,7 +1929,7 @@ class WildBlocks {
         if (!this.nextPiece) return;
         
         // Use responsive block size for next piece
-        const blockSize = this.isMobile ? 12 : 20;
+        const blockSize = this.isMobile ? 8 : 20; // Smaller blocks on mobile
         const offsetX = (this.nextCanvas.width - this.nextPiece.shape[0].length * blockSize) / 2;
         const offsetY = (this.nextCanvas.height - this.nextPiece.shape.length * blockSize) / 2;
         
