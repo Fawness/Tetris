@@ -234,34 +234,7 @@ class WildBlocks {
             isFerret: true
         };
         
-        // Ferret bending configurations for intelligent gap filling
-        this.ferretBends = [
-            // Straight (original)
-            [[1, 1, 1, 1, 1, 1, 1]],
-            // Slight bend
-            [[1, 1, 1, 1, 1, 1, 0],
-             [0, 0, 0, 0, 0, 0, 1]],
-            // Reverse slight bend
-            [[0, 1, 1, 1, 1, 1, 1],
-             [1, 0, 0, 0, 0, 0, 0]],
-            // U-shape
-            [[1, 1, 1, 1, 1, 1, 1],
-             [1, 0, 0, 0, 0, 0, 1]],
-            // L-shape
-            [[1, 1, 1, 1, 1, 1, 1],
-             [1, 0, 0, 0, 0, 0, 0]],
-            // Reverse L-shape
-            [[1, 1, 1, 1, 1, 1, 1],
-             [0, 0, 0, 0, 0, 0, 1]],
-            // Zigzag
-            [[1, 1, 1, 1, 1, 1, 0],
-             [0, 0, 0, 0, 0, 0, 1],
-             [1, 0, 0, 0, 0, 0, 0]],
-            // Reverse zigzag
-            [[0, 1, 1, 1, 1, 1, 1],
-             [1, 0, 0, 0, 0, 0, 0],
-             [0, 0, 0, 0, 0, 0, 1]]
-        ];
+
     }
     
     detectMobile() {
@@ -456,9 +429,6 @@ class WildBlocks {
         const maxHeight = viewportHeight - uiHeight - mobileControlsHeight;
         
         // Calculate block size based on available space
-        // Try to fit the board as large as possible while maintaining aspect ratio
-        const aspectRatio = this.BOARD_WIDTH / this.BOARD_HEIGHT;
-        
         // Calculate block size based on width and height
         let blockSizeByWidth = Math.floor(maxWidth / this.BOARD_WIDTH);
         let blockSizeByHeight = Math.floor(maxHeight / this.BOARD_HEIGHT);
@@ -951,21 +921,7 @@ class WildBlocks {
         }
     }
     
-    performFerretNoodle() {
-        // This method is now replaced by animated noodling
-        // Keeping it for compatibility but it's no longer used
-    }
-    
-    removeFerretFromBoard() {
-        // Find and remove all ferret blocks from the board
-        for (let y = 0; y < this.BOARD_HEIGHT; y++) {
-            for (let x = 0; x < this.BOARD_WIDTH; x++) {
-                if (this.board[y][x] === this.ferretPiece.color) {
-                    this.board[y][x] = 0;
-                }
-            }
-        }
-    }
+
     
     removeActiveFerretFromBoard() {
         // Only remove the active ferret (the one that's currently noodling)
@@ -1139,25 +1095,7 @@ class WildBlocks {
         return { ...bestPosition, shape: bendConfigs[bestBend] };
     }
     
-    canPlaceFerretAt(x, y) {
-        // Check if we can place the ferret at this position
-        for (let col = 0; col < this.ferretPiece.shape[0].length; col++) {
-            const boardX = x + col;
-            const boardY = y;
-            
-            if (boardX < 0 || boardX >= this.BOARD_WIDTH || 
-                boardY < 0 || boardY >= this.BOARD_HEIGHT) {
-                return false;
-            }
-            
-            // Can't place on top of existing blocks (except other ferret blocks)
-            if (this.board[boardY][boardX] !== 0 && this.board[boardY][boardX] !== this.ferretPiece.color) {
-                return false;
-            }
-        }
-        
-        return true;
-    }
+
     
     canPlaceFerretBendAt(x, y, bendShape) {
         // Check if we can place the ferret bend at this position
@@ -1183,66 +1121,7 @@ class WildBlocks {
         return true;
     }
     
-    calculateNoodleScore(x, y) {
-        let score = 0;
-        
-        // Get current ferret position to ensure we only score downward movement
-        let currentY = 0;
-        for (let y2 = 0; y2 < this.BOARD_HEIGHT; y2++) {
-            for (let x2 = 0; x2 < this.BOARD_WIDTH; x2++) {
-                if (this.board[y2][x2] === this.ferretPiece.color) {
-                    currentY = y2;
-                    break;
-                }
-            }
-        }
-        
-        // Only score positions that are at or below current position
-        if (y < currentY) {
-            return -1; // Penalize upward movement
-        }
-        
-        // Check each position the ferret would occupy
-        for (let col = 0; col < this.ferretPiece.shape[0].length; col++) {
-            const boardX = x + col;
-            const boardY = y;
-            
-            if (boardX >= 0 && boardX < this.BOARD_WIDTH && boardY >= 0 && boardY < this.BOARD_HEIGHT) {
-                // Bonus for filling empty spaces
-                if (this.board[boardY][boardX] === 0) {
-                    score += 15;
-                    
-                    // Extra bonus for filling gaps (spaces with blocks above)
-                    let hasBlocksAbove = false;
-                    for (let aboveY = boardY - 1; aboveY >= 0; aboveY--) {
-                        if (this.board[aboveY][boardX] !== 0 && this.board[aboveY][boardX] !== this.ferretPiece.color) {
-                            hasBlocksAbove = true;
-                            break;
-                        }
-                    }
-                    if (hasBlocksAbove) {
-                        score += 30; // Extra points for filling gaps
-                    }
-                }
-                
-                // Bonus for being near other blocks (creating potential line clears)
-                if (boardY > 0 && this.board[boardY - 1][boardX] !== 0 && this.board[boardY - 1][boardX] !== this.ferretPiece.color) {
-                    score += 8;
-                }
-                if (boardX > 0 && this.board[boardY][boardX - 1] !== 0 && this.board[boardY][boardX - 1] !== this.ferretPiece.color) {
-                    score += 5;
-                }
-                if (boardX < this.BOARD_WIDTH - 1 && this.board[boardY][boardX + 1] !== 0 && this.board[boardY][boardX + 1] !== this.ferretPiece.color) {
-                    score += 5;
-                }
-            }
-        }
-        
-        // Prefer lower positions (closer to bottom)
-        score += (this.BOARD_HEIGHT - y) * 3;
-        
-        return score;
-    }
+
     
     calculateBendScore(x, y, bendShape) {
         let score = 0;
@@ -1405,114 +1284,9 @@ class WildBlocks {
         return shape;
     }
     
-    findBestFerretPosition() {
-        let bestScore = -Infinity;
-        let bestX = 0;
-        let bestY = 0;
-        let bestBend = this.ferretPiece.shape;
-        
-        // Try different bend configurations
-        const bendConfigs = [
-            this.ferretPiece.shape, // Straight
-            this.createBendShape(1, 2), // Small bend
-            this.createBendShape(2, 1), // Medium bend
-            this.createBendShape(3, 1), // Large bend
-            this.createBendShape(1, 3), // Vertical bend
-        ];
-        
-        // Get current ferret position
-        let currentY = 0;
-        for (let y = 0; y < this.BOARD_HEIGHT; y++) {
-            for (let x = 0; x < this.BOARD_WIDTH; x++) {
-                if (this.board[y][x] === this.ferretPiece.color) {
-                    currentY = y;
-                    break;
-                }
-            }
-        }
-        
-        // Try each bend configuration
-        for (let bendIndex = 0; bendIndex < bendConfigs.length; bendIndex++) {
-            const bendShape = bendConfigs[bendIndex];
-            
-            // Try different positions, prioritizing lower positions
-            for (let y = currentY; y < this.BOARD_HEIGHT; y++) {
-                for (let x = 0; x < this.BOARD_WIDTH; x++) {
-                    if (this.canPlaceFerret(x, y, bendShape)) {
-                        const score = this.calculateBendScore(x, y, bendShape);
-                        if (score > bestScore) {
-                            bestScore = score;
-                            bestX = x;
-                            bestY = y;
-                            bestBend = bendShape;
-                        }
-                    }
-                }
-            }
-            
-            // Also try positions slightly above current position for better gap filling
-            for (let y = Math.max(0, currentY - 2); y < currentY; y++) {
-                for (let x = 0; x < this.BOARD_WIDTH; x++) {
-                    if (this.canPlaceFerret(x, y, bendShape)) {
-                        const score = this.calculateBendScore(x, y, bendShape);
-                        if (score > bestScore) {
-                            bestScore = score;
-                            bestX = x;
-                            bestY = y;
-                            bestBend = bendShape;
-                        }
-                    }
-                }
-            }
-        }
-        
-        return { x: bestX, y: bestY, shape: bestBend };
-    }
+
     
-    calculateFerretScore(x, y) {
-        let score = 0;
-        
-        // Check each position the ferret would occupy
-        for (let col = 0; col < this.currentPiece.shape[0].length; col++) {
-            const boardX = x + col;
-            const boardY = y;
-            
-            if (boardX >= 0 && boardX < this.BOARD_WIDTH && boardY >= 0 && boardY < this.BOARD_HEIGHT) {
-                // Bonus for filling empty spaces
-                if (this.board[boardY][boardX] === 0) {
-                    score += 10;
-                    
-                    // Extra bonus for filling gaps (spaces with blocks above)
-                    let hasBlocksAbove = false;
-                    for (let aboveY = boardY - 1; aboveY >= 0; aboveY--) {
-                        if (this.board[aboveY][boardX] !== 0) {
-                            hasBlocksAbove = true;
-                            break;
-                        }
-                    }
-                    if (hasBlocksAbove) {
-                        score += 20; // Extra points for filling gaps
-                    }
-                }
-                
-                // Bonus for being near other blocks (creating potential line clears)
-                if (boardY > 0 && this.board[boardY - 1][boardX] !== 0) {
-                    score += 5;
-                }
-                if (boardX > 0 && this.board[boardY][boardX - 1] !== 0) {
-                    score += 3;
-                }
-                if (boardX < this.BOARD_WIDTH - 1 && this.board[boardY][boardX + 1] !== 0) {
-                    score += 3;
-                }
-            }
-        }
-        
-        // Prefer lower positions (closer to bottom)
-        score += (this.BOARD_HEIGHT - y) * 2;
-        
-        return score;
-    }
+
     
     clearLines() {
         let linesToClear = [];
