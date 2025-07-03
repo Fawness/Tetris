@@ -276,6 +276,10 @@ class WildBlocks {
         
         // Handle window resize for responsive canvas
         window.addEventListener('resize', () => this.handleResize());
+        window.addEventListener('orientationchange', () => {
+            // Wait for orientation change to complete
+            setTimeout(() => this.handleResize(), 100);
+        });
         this.handleResize();
     }
     
@@ -371,26 +375,78 @@ class WildBlocks {
     handleResize() {
         // Adjust canvas size for mobile
         if (this.isMobile) {
-            const container = this.canvas.parentElement;
-            const maxWidth = Math.min(window.innerWidth - 40, 300);
-            const maxHeight = Math.min(window.innerHeight - 200, 600);
-            
-            // Maintain aspect ratio
-            const aspectRatio = this.BOARD_WIDTH / this.BOARD_HEIGHT;
-            let newWidth = maxWidth;
-            let newHeight = newWidth / aspectRatio;
-            
-            if (newHeight > maxHeight) {
-                newHeight = maxHeight;
-                newWidth = newHeight * aspectRatio;
-            }
-            
-            this.canvas.style.width = newWidth + 'px';
-            this.canvas.style.height = newHeight + 'px';
-            
-            // Update block size for drawing calculations
-            this.BLOCK_SIZE = newWidth / this.BOARD_WIDTH;
+            this.updateMobileCanvasSize();
         }
+    }
+    
+    updateMobileCanvasSize() {
+        // Get the actual viewport dimensions
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+        
+        // Calculate available space for the canvas
+        const padding = 40; // Account for padding and UI elements
+        const maxWidth = Math.min(viewportWidth - padding, 300);
+        const maxHeight = Math.min(viewportHeight - 200, 600);
+        
+        // Maintain aspect ratio
+        const aspectRatio = this.BOARD_WIDTH / this.BOARD_HEIGHT;
+        let newWidth = maxWidth;
+        let newHeight = newWidth / aspectRatio;
+        
+        if (newHeight > maxHeight) {
+            newHeight = maxHeight;
+            newWidth = newHeight * aspectRatio;
+        }
+        
+        // Ensure the width is a multiple of BOARD_WIDTH for perfect grid alignment
+        const blockSize = Math.floor(newWidth / this.BOARD_WIDTH);
+        newWidth = blockSize * this.BOARD_WIDTH;
+        newHeight = blockSize * this.BOARD_HEIGHT;
+        
+        // Set canvas size
+        this.canvas.style.width = newWidth + 'px';
+        this.canvas.style.height = newHeight + 'px';
+        
+        // Update block size for drawing calculations
+        this.BLOCK_SIZE = blockSize;
+    }
+    
+    lockMobileViewport() {
+        // Store original viewport height
+        this.originalViewportHeight = window.innerHeight;
+        
+        // Set viewport meta tag to prevent scaling
+        const viewportMeta = document.querySelector('meta[name="viewport"]');
+        if (viewportMeta) {
+            viewportMeta.setAttribute('content', 'width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover');
+        }
+        
+        // Update canvas size with locked dimensions
+        this.updateMobileCanvasSize();
+        
+        // Prevent scroll events
+        document.addEventListener('touchmove', this.preventDefault, { passive: false });
+        document.addEventListener('scroll', this.preventDefault, { passive: false });
+    }
+    
+    unlockMobileViewport() {
+        // Restore original viewport meta tag
+        const viewportMeta = document.querySelector('meta[name="viewport"]');
+        if (viewportMeta) {
+            viewportMeta.setAttribute('content', 'width=device-width, initial-scale=1.0, user-scalable=no');
+        }
+        
+        // Remove scroll prevention
+        document.removeEventListener('touchmove', this.preventDefault);
+        document.removeEventListener('scroll', this.preventDefault);
+        
+        // Reset canvas size
+        this.handleResize();
+    }
+    
+    preventDefault(e) {
+        e.preventDefault();
     }
     
     handleKeyPress(e) {
@@ -427,6 +483,12 @@ class WildBlocks {
         this.gameRunning = true;
         this.gamePaused = false;
         this.gameOver = false;
+        
+        // Lock viewport on mobile when game starts
+        if (this.isMobile) {
+            document.body.classList.add('game-running');
+            this.lockMobileViewport();
+        }
         
         // Get selected difficulty
         const difficulty = document.getElementById('difficultySelect').value;
@@ -477,12 +539,22 @@ class WildBlocks {
         this.gamePaused = !this.gamePaused;
         document.getElementById('pauseBtn').textContent = this.gamePaused ? 'Resume' : 'Pause';
         
-        // Show/hide mobile controls based on pause state
-        if (this.isMobile && this.mobileControls) {
+        // Handle viewport and mobile controls based on pause state
+        if (this.isMobile) {
             if (this.gamePaused) {
-                this.mobileControls.classList.remove('game-running');
+                // Unlock viewport when paused
+                document.body.classList.remove('game-running');
+                this.unlockMobileViewport();
+                if (this.mobileControls) {
+                    this.mobileControls.classList.remove('game-running');
+                }
             } else {
-                this.mobileControls.classList.add('game-running');
+                // Lock viewport when resuming
+                document.body.classList.add('game-running');
+                this.lockMobileViewport();
+                if (this.mobileControls) {
+                    this.mobileControls.classList.add('game-running');
+                }
             }
         }
     }
@@ -1482,6 +1554,13 @@ class WildBlocks {
     endGame() {
         this.gameRunning = false;
         this.gameOver = true;
+        
+        // Unlock viewport on mobile when game ends
+        if (this.isMobile) {
+            document.body.classList.remove('game-running');
+            this.unlockMobileViewport();
+        }
+        
         document.getElementById('startBtn').style.display = 'block';
         document.getElementById('pauseBtn').style.display = 'none';
         document.getElementById('pauseBtn').textContent = 'Pause';
@@ -1910,17 +1989,20 @@ class WildBlocks {
         
         const blockSize = this.getBlockSize();
         
+        // Ensure pixel-perfect grid lines
         for (let x = 0; x <= this.BOARD_WIDTH; x++) {
+            const gridX = Math.round(x * blockSize);
             this.ctx.beginPath();
-            this.ctx.moveTo(x * blockSize, 0);
-            this.ctx.lineTo(x * blockSize, this.canvas.height);
+            this.ctx.moveTo(gridX, 0);
+            this.ctx.lineTo(gridX, this.canvas.height);
             this.ctx.stroke();
         }
         
         for (let y = 0; y <= this.BOARD_HEIGHT; y++) {
+            const gridY = Math.round(y * blockSize);
             this.ctx.beginPath();
-            this.ctx.moveTo(0, y * blockSize);
-            this.ctx.lineTo(this.canvas.width, y * blockSize);
+            this.ctx.moveTo(0, gridY);
+            this.ctx.lineTo(this.canvas.width, gridY);
             this.ctx.stroke();
         }
         
@@ -2042,28 +2124,31 @@ class WildBlocks {
     
     getBlockSize() {
         // Return the current block size (responsive)
-        return this.isMobile ? this.BLOCK_SIZE : 30;
+        if (this.isMobile) {
+            // Ensure block size is always a whole number for perfect grid alignment
+            return Math.floor(this.BLOCK_SIZE);
+        }
+        return 30;
     }
     
     drawNormalBlock(x, y, color) {
         const blockSize = this.getBlockSize();
+        const blockX = Math.round(x * blockSize + 1);
+        const blockY = Math.round(y * blockSize + 1);
+        const blockSizeInner = Math.round(blockSize - 2);
+        
         this.ctx.fillStyle = color;
-        this.ctx.fillRect(x * blockSize + 1, y * blockSize + 1, 
-                         blockSize - 2, blockSize - 2);
+        this.ctx.fillRect(blockX, blockY, blockSizeInner, blockSizeInner);
         
         // Add highlight
         this.ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-        this.ctx.fillRect(x * blockSize + 1, y * blockSize + 1, 
-                         blockSize - 2, 2);
-        this.ctx.fillRect(x * blockSize + 1, y * blockSize + 1, 
-                         2, blockSize - 2);
+        this.ctx.fillRect(blockX, blockY, blockSizeInner, 2);
+        this.ctx.fillRect(blockX, blockY, 2, blockSizeInner);
         
         // Add shadow
         this.ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
-        this.ctx.fillRect(x * blockSize + blockSize - 3, y * blockSize + 1, 
-                         2, blockSize - 2);
-        this.ctx.fillRect(x * blockSize + 1, y * blockSize + blockSize - 3, 
-                         blockSize - 2, 2);
+        this.ctx.fillRect(blockX + blockSizeInner - 2, blockY, 2, blockSizeInner);
+        this.ctx.fillRect(blockX, blockY + blockSizeInner - 2, blockSizeInner, 2);
     }
     
     drawFerretBlock(x, y) {
