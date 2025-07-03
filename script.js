@@ -294,6 +294,17 @@ class WildBlocks {
             this.mobileControls.classList.remove('game-running');
         }
         
+        // Prevent touch zoom and other unwanted behaviors
+        document.addEventListener('touchstart', (e) => {
+            if (e.touches.length > 1) {
+                e.preventDefault(); // Prevent pinch zoom
+            }
+        }, { passive: false });
+        
+        document.addEventListener('touchend', (e) => {
+            e.preventDefault(); // Prevent double-tap zoom
+        }, { passive: false });
+        
         // Touch event listeners
         document.getElementById('leftBtn').addEventListener('touchstart', (e) => {
             e.preventDefault();
@@ -385,11 +396,12 @@ class WildBlocks {
         const viewportHeight = window.innerHeight;
         
         // Calculate available space for the canvas
-        // Use more of the available space on mobile
+        // Account for mobile controls overlay at the bottom
         const padding = 20; // Reduced padding
         const uiHeight = 100; // Reduced UI height
+        const mobileControlsHeight = 120; // Height of mobile controls overlay
         const maxWidth = viewportWidth - padding;
-        const maxHeight = viewportHeight - uiHeight;
+        const maxHeight = viewportHeight - uiHeight - mobileControlsHeight;
         
         // Calculate block size based on available space
         // Try to fit the board as large as possible while maintaining aspect ratio
