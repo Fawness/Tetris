@@ -1,43 +1,49 @@
-# Wild Blocks 🐾 - Ultra Lightweight Browser Game
+# 🐾 Wild Blocks - Ultra Lightweight Block-Stacking Game
 
-A modern, feature-rich implementation of the classic block-stacking game that runs entirely in the browser with no dependencies.
+A feature-rich, mobile-responsive block-stacking game with multiple game modes, built with pure JavaScript, HTML5 Canvas, and CSS3. Experience classic block-stacking gameplay enhanced with chaotic elements, helpful companions, and strategic challenges.
 
-## 🎮 Features
+## ✨ Features
 
-### Core Gameplay
-- **Classic block-stacking mechanics** with all 7 standard pieces (I, O, T, S, Z, J, L)
-- **Smooth piece movement** and rotation
-- **Line clearing** with stunning visual effects and animations
-- **Progressive difficulty** - speed increases as you level up
-- **Next piece preview** to plan your moves
-- **Visual line clear effects** with outlines, fading, and glow animations
+### 🎮 Core Gameplay
+- **Classic block-stacking mechanics** with smooth piece movement and rotation
+- **4 difficulty levels** from Easy to Expert with progressive speed increases
+- **Score tracking** with points for line clears, hard drops, and special actions
+- **Level progression** every 10 lines cleared
+- **Line clear animations** with glowing outlines and fade effects
+- **Next piece preview** to help with strategic planning
 
-### Difficulty Settings
-- **Easy**: Slower initial speed (1.5s), gentle speed increase
-- **Normal**: Balanced gameplay (1s), moderate speed increase
-- **Hard**: Fast-paced (0.6s), aggressive speed increase
-- **Expert**: Lightning fast (0.3s), very aggressive speed increase
+### 📱 Mobile Responsive Design
+- **Automatic mobile detection** - switches to touch controls on mobile devices
+- **Responsive canvas scaling** - game board adapts to screen size
+- **Touch-friendly controls** with intuitive button layout:
+  - ⬅️➡️ Move left/right
+  - ⬇️ Soft drop
+  - 🔄 Rotate piece
+  - 💥 Hard drop
+  - ⏸️ Pause game
+- **Optimized for all screen sizes** - works on phones, tablets, and desktops
+- **Touch-optimized interactions** with proper event handling
+- **Responsive typography** and UI elements
 
 ### 🦌 Oh Deer God Mode
-- **Optional chaos mode** with special "crazy blocks"
-- **5 unique crazy block types** with unusual, cumbersome shapes
-- **Animated deer emojis** that bounce on crazy blocks with golden glow
-- **15% chance** of spawning crazy blocks when enabled
-- **Brown color scheme** to distinguish from normal pieces
+- **Chaotic gameplay** with randomly spawning crazy blocks
+- **Deer-shaped pieces** that are larger and more complex than standard pieces
+- **Animated deer emojis** that bounce around on special pieces
+- **15% spawn chance** for crazy blocks to appear
+- **Multiple deer block types** including L-shapes, T-shapes, and massive squares
+- **Visual chaos** with glowing effects and bouncing animations
 
 ### 🐝 Bee Mode
-- **Swarming micro bees** that fly around the game board
-- **Automatic gap filling** - bees fill empty spaces with honey-colored blocks
-- **Smart gap detection** - finds spaces with blocks above them
-- **Honey blocks with bee emojis** - special golden blocks with animated bee emojis
-- **Score bonus** - 5 points for each gap filled by bees
-- **Visual effects** - glowing bees with buzzing animation and trails
-- **Maximum 12 bees** with natural movement patterns
-- **Honey texture** - wavy patterns and gradient colors on filled blocks
+- **Swarming bees** that automatically fill gaps in the board
+- **Honey-colored blocks** with bee emojis appear where bees have filled spaces
+- **Intelligent gap detection** - bees only fill small holes, not open areas
+- **Reduced spawn frequency** for balanced gameplay
+- **Strategic element** - can help or hinder depending on placement
+- **Animated bee movement** with buzzing effects and trails
 
 ### 🦦 Ferret Mode
-- **Special 1x7 ferret piece** that spawns randomly (8% chance)
-- **Intelligent noodling behavior** - ferret automatically finds optimal positions
+- **Special ferret pieces** that spawn randomly (8% chance)
+- **Intelligent automatic placement** - ferret finds optimal positions
 - **Multi-phase noodling** - ferret moves in stages to reach the best position
 - **Gap detection and filling** - ferret specifically targets gaps below blocks
 - **Bend configurations** - ferret can bend into L-shapes, T-shapes, and other forms
@@ -49,25 +55,37 @@ A modern, feature-rich implementation of the classic block-stacking game that ru
 
 ### 🐱 Cat Mode
 - **Lazy cat companion** that randomly appears and walks around the board
-- **Nap behavior** - cat chooses random blocks to sleep on, preventing piece placement
-- **Clawing action** - cat may scratch and remove blocks from the board
+- **Realistic napping behavior** - cat naps on top of the highest block in each column
+- **Prevents piece placement** - blocks can't be placed where cat is napping
+- **Accurate clawing action** - cat scratches and removes the exact block it's targeting
 - **Speech bubbles** - visual indicators for cat's actions ("zzz" for napping, "scratch" for clawing)
 - **Random timing** - cat comes and goes unpredictably, adding challenge when enabled
+- **Position tracking** - cat stays in place while napping or clawing
 
-### Controls
+### 🎯 Controls
+
+#### Desktop Controls
 - **← →**: Move pieces left/right
 - **↓**: Soft drop (move down faster)
 - **↑**: Rotate piece
 - **Space**: Hard drop (instant drop)
 - **P**: Pause/Resume game
 
-### Visual Design
+#### Mobile Touch Controls
+- **⬅️➡️**: Move pieces left/right
+- **⬇️**: Soft drop
+- **🔄**: Rotate piece
+- **💥**: Hard drop
+- **⏸️**: Pause/Resume game
+
+### 🎨 Visual Design
 - **Modern dark theme** with cyan accents
-- **Responsive design** that works on desktop and mobile
+- **Fully responsive design** that works on desktop and mobile
 - **Smooth animations** and visual effects
 - **Clean, minimalist UI** with score tracking
 - **Line clear animations** with outlines and fading effects
 - **Special block rendering** for ferrets, honey blocks, and crazy blocks
+- **Responsive canvas scaling** for optimal viewing on all devices
 
 ## 🚀 Getting Started
 
@@ -75,6 +93,8 @@ A modern, feature-rich implementation of the classic block-stacking game that ru
 2. **Open** `index.html` in any modern web browser
 3. **Select** your preferred difficulty and game mode(s)
 4. **Click** "Start Game" and enjoy!
+
+**Mobile users**: The game automatically detects mobile devices and switches to touch controls!
 
 ## 🎯 Game Modes
 
@@ -106,8 +126,8 @@ A modern, feature-rich implementation of the classic block-stacking game that ru
 
 ### Cat Mode
 - Lazy cat that randomly appears and walks around the board
-- Takes naps on random blocks, preventing piece placement
-- May claw and remove blocks from the board
+- Takes naps on top of placed blocks, preventing piece placement
+- May claw and remove blocks from the board (accurately targets specific blocks)
 - Visual speech bubbles show cat's current action
 - Adds unpredictable challenge when enabled
 
@@ -132,42 +152,61 @@ A modern, feature-rich implementation of the classic block-stacking game that ru
 - **Pure JavaScript** - no frameworks or libraries
 - **HTML5 Canvas** for smooth rendering
 - **CSS3** for modern styling and animations
-- **Responsive design** for all screen sizes
-- **Local browser storage** - no server required
-- **Advanced AI algorithms** for ferret noodling behavior
-- **Pathfinding algorithms** for reachable position detection
-- **Animation systems** for smooth visual effects
+- **Mobile-first responsive design**
+- **Touch event handling** for mobile devices
+- **Automatic device detection**
+- **Responsive canvas scaling**
+- **Cross-browser compatibility**
 
-## 🎨 Customization
+## 📱 Mobile Features
 
-The game is built with modularity in mind:
-- Easy to modify piece colors and shapes
-- Adjustable difficulty settings
-- Customizable crazy block types
-- Flexible scoring system
-- Bee behavior and spawning mechanics
-- Ferret noodling algorithms and bend configurations
-- Animation timing and visual effects
+- **Automatic mobile detection** using user agent and screen size
+- **Touch-optimized controls** with visual feedback
+- **Responsive layout** that adapts to different screen sizes
+- **Prevented zooming** and text selection for better gameplay
+- **Optimized performance** for mobile devices
+- **Landscape and portrait support**
 
-## 📱 Browser Compatibility
+## 🎮 Browser Compatibility
 
-Works on all modern browsers:
-- Chrome/Chromium
-- Firefox
-- Safari
-- Edge
+- **Chrome** (recommended)
+- **Firefox**
+- **Safari**
+- **Edge**
+- **Mobile browsers** (iOS Safari, Chrome Mobile, etc.)
 
-## 🎵 Future Enhancements
+## 🔧 Recent Updates
 
-Potential features for future versions:
-- Sound effects and background music
-- Mobile touch controls
-- High score persistence
+### Mobile Responsiveness
+- Added automatic mobile detection
+- Implemented touch controls with intuitive button layout
+- Created responsive canvas scaling
+- Optimized layout for all screen sizes
+- Added touch event handling with proper feedback
+
+### Cat Mode Improvements
+- Fixed cat napping to occur on top of placed blocks
+- Improved cat scratching accuracy to target specific blocks
+- Added position tracking for better collision detection
+- Enhanced visual behavior and movement patterns
+
+### General Improvements
+- Enhanced responsive design across all game modes
+- Improved performance on mobile devices
+- Better visual feedback for all interactions
+- Optimized animations for smooth gameplay
+
+## 🎯 Future Enhancements
+
+- Additional game modes
+- Sound effects and music
+- High score tracking
+- Custom themes
 - Multiplayer support
-- Custom piece themes
-- Additional special pieces and modes
-- Advanced ferret behaviors and patterns
+- More special pieces and effects
 
 ---
 
-**Enjoy the game! 🎮**
+**Enjoy playing Wild Blocks! 🐾**
+
+*Built with ❤️ using vanilla JavaScript, HTML5, and CSS3*
