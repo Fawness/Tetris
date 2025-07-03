@@ -23,6 +23,11 @@ class WildBlocks {
         this.dropInterval = 1000;
         this.lastTime = 0;
         
+        // Mobile detection and settings
+        this.isMobile = this.detectMobile();
+        this.mobileControls = document.getElementById('mobileControls');
+        this.desktopControls = document.querySelector('.desktop-controls');
+        
         // Difficulty settings
         this.difficultySettings = {
             easy: { initialSpeed: 1500, speedIncrease: 50 },
@@ -248,10 +253,136 @@ class WildBlocks {
         ];
     }
     
+    detectMobile() {
+        return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+               (window.innerWidth <= 768 && window.innerHeight <= 1024);
+    }
+    
     setupEventListeners() {
         document.addEventListener('keydown', (e) => this.handleKeyPress(e));
         document.getElementById('startBtn').addEventListener('click', () => this.startGame());
         document.getElementById('pauseBtn').addEventListener('click', () => this.togglePause());
+        
+        // Mobile touch controls
+        if (this.isMobile) {
+            this.setupMobileControls();
+        }
+        
+        // Handle window resize for responsive canvas
+        window.addEventListener('resize', () => this.handleResize());
+        this.handleResize();
+    }
+    
+    setupMobileControls() {
+        // Show mobile controls and hide desktop controls
+        if (this.mobileControls) {
+            this.mobileControls.style.display = 'block';
+        }
+        if (this.desktopControls) {
+            this.desktopControls.style.display = 'none';
+        }
+        
+        // Touch event listeners
+        document.getElementById('leftBtn').addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            this.handleTouchMove(-1, 0);
+        });
+        
+        document.getElementById('rightBtn').addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            this.handleTouchMove(1, 0);
+        });
+        
+        document.getElementById('downBtn').addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            this.handleTouchMove(0, 1);
+        });
+        
+        document.getElementById('rotateBtn').addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            this.handleTouchRotate();
+        });
+        
+        document.getElementById('hardDropBtn').addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            this.handleTouchHardDrop();
+        });
+        
+        document.getElementById('pauseBtnMobile').addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            this.togglePause();
+        });
+        
+        // Mouse events for desktop testing
+        document.getElementById('leftBtn').addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            this.handleTouchMove(-1, 0);
+        });
+        
+        document.getElementById('rightBtn').addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            this.handleTouchMove(1, 0);
+        });
+        
+        document.getElementById('downBtn').addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            this.handleTouchMove(0, 1);
+        });
+        
+        document.getElementById('rotateBtn').addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            this.handleTouchRotate();
+        });
+        
+        document.getElementById('hardDropBtn').addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            this.handleTouchHardDrop();
+        });
+        
+        document.getElementById('pauseBtnMobile').addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            this.togglePause();
+        });
+    }
+    
+    handleTouchMove(dx, dy) {
+        if (!this.gameRunning || this.gamePaused || this.gameOver) return;
+        this.movePiece(dx, dy);
+    }
+    
+    handleTouchRotate() {
+        if (!this.gameRunning || this.gamePaused || this.gameOver) return;
+        this.rotatePiece();
+    }
+    
+    handleTouchHardDrop() {
+        if (!this.gameRunning || this.gamePaused || this.gameOver) return;
+        this.hardDrop();
+    }
+    
+    handleResize() {
+        // Adjust canvas size for mobile
+        if (this.isMobile) {
+            const container = this.canvas.parentElement;
+            const maxWidth = Math.min(window.innerWidth - 40, 300);
+            const maxHeight = Math.min(window.innerHeight - 200, 600);
+            
+            // Maintain aspect ratio
+            const aspectRatio = this.BOARD_WIDTH / this.BOARD_HEIGHT;
+            let newWidth = maxWidth;
+            let newHeight = newWidth / aspectRatio;
+            
+            if (newHeight > maxHeight) {
+                newHeight = maxHeight;
+                newWidth = newHeight * aspectRatio;
+            }
+            
+            this.canvas.style.width = newWidth + 'px';
+            this.canvas.style.height = newHeight + 'px';
+            
+            // Update block size for drawing calculations
+            this.BLOCK_SIZE = newWidth / this.BOARD_WIDTH;
+        }
     }
     
     handleKeyPress(e) {
@@ -466,10 +597,9 @@ class WildBlocks {
                     }
                     
                     // Check if cat is napping on this position
-                    if (this.catMode && this.cat && this.cat.napping) {
-                        const catBoardX = Math.floor(this.cat.targetX / this.BLOCK_SIZE);
-                        const catBoardY = Math.floor(this.cat.targetY / this.BLOCK_SIZE);
-                        if (newX === catBoardX && newY === catBoardY) {
+                    if (this.catMode && this.cat && this.cat.napping && this.cat.napBoardX !== undefined && this.cat.napBoardY !== undefined) {
+                        // Check if the piece would occupy the space where the cat is napping
+                        if (newX === this.cat.napBoardX && newY === this.cat.napBoardY) {
                             return false;
                         }
                     }
@@ -1478,8 +1608,9 @@ class WildBlocks {
     
     shouldBeeFillGap(bee) {
         // Convert bee position to board coordinates
-        const boardX = Math.floor(bee.x / this.BLOCK_SIZE);
-        const boardY = Math.floor(bee.y / this.BLOCK_SIZE);
+        const blockSize = this.getBlockSize();
+        const boardX = Math.floor(bee.x / blockSize);
+        const boardY = Math.floor(bee.y / blockSize);
         
         // Check if bee is within board bounds
         if (boardX < 0 || boardX >= this.BOARD_WIDTH || 
@@ -1524,8 +1655,9 @@ class WildBlocks {
     }
     
     fillGapWithBee(bee) {
-        const boardX = Math.floor(bee.x / this.BLOCK_SIZE);
-        const boardY = Math.floor(bee.y / this.BLOCK_SIZE);
+        const blockSize = this.getBlockSize();
+        const boardX = Math.floor(bee.x / blockSize);
+        const boardY = Math.floor(bee.y / blockSize);
         
         // Fill the gap with a honey-colored block
         this.board[boardY][boardX] = 'honey'; // Special honey color identifier
@@ -1565,6 +1697,10 @@ class WildBlocks {
                     this.cat.vx = (Math.random() - 0.5) * 0.5;
                     this.cat.vy = (Math.random() - 0.5) * 0.5;
                 }
+            } else if (this.cat.napping && this.cat.targetX !== null && this.cat.targetY !== null) {
+                // Keep cat in nap position
+                this.cat.x = this.cat.targetX;
+                this.cat.y = this.cat.targetY;
             }
             
             // Update action timer
@@ -1582,6 +1718,8 @@ class WildBlocks {
                 if (this.catNapTimer >= this.catNapDuration) {
                     this.cat.napping = false;
                     this.catNapTimer = 0;
+                    this.cat.napBoardX = null;
+                    this.cat.napBoardY = null;
                 }
             }
             
@@ -1635,7 +1773,9 @@ class WildBlocks {
             napping: false,
             clawing: false,
             targetX: null,
-            targetY: null
+            targetY: null,
+            napBoardX: null,
+            napBoardY: null
         };
     }
     
@@ -1649,22 +1789,38 @@ class WildBlocks {
     }
     
     catStartNap() {
-        // Find a random block to nap on
-        const occupiedPositions = [];
-        for (let y = 0; y < this.BOARD_HEIGHT; y++) {
-            for (let x = 0; x < this.BOARD_WIDTH; x++) {
+        // Find the top of each column (highest block in each column)
+        const topPositions = [];
+        
+        for (let x = 0; x < this.BOARD_WIDTH; x++) {
+            // Find the highest block in this column
+            for (let y = 0; y < this.BOARD_HEIGHT; y++) {
                 if (this.board[y][x] !== 0) {
-                    occupiedPositions.push({x, y});
+                    // Found a block, this is the top of the column
+                    topPositions.push({x, y});
+                    break;
                 }
             }
         }
         
-        if (occupiedPositions.length > 0) {
-            const napSpot = occupiedPositions[Math.floor(Math.random() * occupiedPositions.length)];
-            this.cat.targetX = napSpot.x * this.BLOCK_SIZE + this.BLOCK_SIZE / 2;
-            this.cat.targetY = napSpot.y * this.BLOCK_SIZE + this.BLOCK_SIZE / 2;
+        if (topPositions.length > 0) {
+            const blockSize = this.getBlockSize();
+            const napSpot = topPositions[Math.floor(Math.random() * topPositions.length)];
+            
+            // Position cat on top of the block (slightly above it)
+            this.cat.targetX = napSpot.x * blockSize + blockSize / 2;
+            this.cat.targetY = napSpot.y * blockSize - blockSize / 4; // Position above the block
+            
+            // Move cat to nap position immediately
+            this.cat.x = this.cat.targetX;
+            this.cat.y = this.cat.targetY;
+            
             this.cat.napping = true;
             this.catNapTimer = 0;
+            
+            // Store the board position for collision detection
+            this.cat.napBoardX = napSpot.x;
+            this.cat.napBoardY = napSpot.y;
         }
     }
     
@@ -1680,9 +1836,15 @@ class WildBlocks {
         }
         
         if (occupiedPositions.length > 0) {
+            const blockSize = this.getBlockSize();
             const clawTarget = occupiedPositions[Math.floor(Math.random() * occupiedPositions.length)];
-            this.cat.targetX = clawTarget.x * this.BLOCK_SIZE + this.BLOCK_SIZE / 2;
-            this.cat.targetY = clawTarget.y * this.BLOCK_SIZE + this.BLOCK_SIZE / 2;
+            
+            // Move cat to the target position and stop movement during clawing
+            this.cat.x = clawTarget.x * blockSize + blockSize / 2;
+            this.cat.y = clawTarget.y * blockSize + blockSize / 2;
+            this.cat.targetX = this.cat.x;
+            this.cat.targetY = this.cat.y;
+            
             this.cat.clawing = true;
             this.catClawTarget = {x: clawTarget.x, y: clawTarget.y};
             this.catClawProgress = 0;
@@ -1696,6 +1858,10 @@ class WildBlocks {
             this.cat.clawing = false;
             this.catClawTarget = null;
             this.catClawProgress = 0;
+            
+            // Reset target position so cat can move again
+            this.cat.targetX = null;
+            this.cat.targetY = null;
         }
     }
     
@@ -1715,17 +1881,19 @@ class WildBlocks {
         this.ctx.strokeStyle = '#333';
         this.ctx.lineWidth = 1;
         
+        const blockSize = this.getBlockSize();
+        
         for (let x = 0; x <= this.BOARD_WIDTH; x++) {
             this.ctx.beginPath();
-            this.ctx.moveTo(x * this.BLOCK_SIZE, 0);
-            this.ctx.lineTo(x * this.BLOCK_SIZE, this.canvas.height);
+            this.ctx.moveTo(x * blockSize, 0);
+            this.ctx.lineTo(x * blockSize, this.canvas.height);
             this.ctx.stroke();
         }
         
         for (let y = 0; y <= this.BOARD_HEIGHT; y++) {
             this.ctx.beginPath();
-            this.ctx.moveTo(0, y * this.BLOCK_SIZE);
-            this.ctx.lineTo(this.canvas.width, y * this.BLOCK_SIZE);
+            this.ctx.moveTo(0, y * blockSize);
+            this.ctx.lineTo(this.canvas.width, y * blockSize);
             this.ctx.stroke();
         }
         
@@ -1745,33 +1913,34 @@ class WildBlocks {
     }
     
     drawLineClearAnimation() {
+        const blockSize = this.getBlockSize();
         for (let lineY of this.lineClearAnimation.lines) {
             // Draw outline effect
             this.ctx.strokeStyle = `rgba(255, 255, 255, ${this.lineClearAnimation.outlineAlpha})`;
             this.ctx.lineWidth = 3;
             this.ctx.strokeRect(
                 0, 
-                lineY * this.BLOCK_SIZE, 
-                this.BOARD_WIDTH * this.BLOCK_SIZE, 
-                this.BLOCK_SIZE
+                lineY * blockSize, 
+                this.BOARD_WIDTH * blockSize, 
+                blockSize
             );
             
             // Draw fade effect on blocks
             for (let x = 0; x < this.BOARD_WIDTH; x++) {
                 if (this.board[lineY][x]) {
-                    const blockX = x * this.BLOCK_SIZE + 1;
-                    const blockY = lineY * this.BLOCK_SIZE + 1;
-                    const blockSize = this.BLOCK_SIZE - 2;
+                    const blockX = x * blockSize + 1;
+                    const blockY = lineY * blockSize + 1;
+                    const blockSizeInner = blockSize - 2;
                     
                     // Create a fade effect by drawing a semi-transparent overlay
                     this.ctx.fillStyle = `rgba(255, 255, 255, ${1 - this.lineClearAnimation.fadeAlpha})`;
-                    this.ctx.fillRect(blockX, blockY, blockSize, blockSize);
+                    this.ctx.fillRect(blockX, blockY, blockSizeInner, blockSizeInner);
                     
                     // Add a glow effect
                     this.ctx.shadowColor = 'rgba(255, 255, 255, 0.8)';
                     this.ctx.shadowBlur = 10 * this.lineClearAnimation.outlineAlpha;
                     this.ctx.fillStyle = `rgba(255, 255, 255, ${this.lineClearAnimation.outlineAlpha * 0.3})`;
-                    this.ctx.fillRect(blockX - 2, blockY - 2, blockSize + 4, blockSize + 4);
+                    this.ctx.fillRect(blockX - 2, blockY - 2, blockSizeInner + 4, blockSizeInner + 4);
                     this.ctx.shadowBlur = 0; // Reset shadow
                 }
             }
@@ -1844,39 +2013,46 @@ class WildBlocks {
         }
     }
     
+    getBlockSize() {
+        // Return the current block size (responsive)
+        return this.isMobile ? this.BLOCK_SIZE : 30;
+    }
+    
     drawNormalBlock(x, y, color) {
+        const blockSize = this.getBlockSize();
         this.ctx.fillStyle = color;
-        this.ctx.fillRect(x * this.BLOCK_SIZE + 1, y * this.BLOCK_SIZE + 1, 
-                         this.BLOCK_SIZE - 2, this.BLOCK_SIZE - 2);
+        this.ctx.fillRect(x * blockSize + 1, y * blockSize + 1, 
+                         blockSize - 2, blockSize - 2);
         
         // Add highlight
         this.ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-        this.ctx.fillRect(x * this.BLOCK_SIZE + 1, y * this.BLOCK_SIZE + 1, 
-                         this.BLOCK_SIZE - 2, 2);
-        this.ctx.fillRect(x * this.BLOCK_SIZE + 1, y * this.BLOCK_SIZE + 1, 
-                         2, this.BLOCK_SIZE - 2);
+        this.ctx.fillRect(x * blockSize + 1, y * blockSize + 1, 
+                         blockSize - 2, 2);
+        this.ctx.fillRect(x * blockSize + 1, y * blockSize + 1, 
+                         2, blockSize - 2);
         
         // Add shadow
         this.ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
-        this.ctx.fillRect(x * this.BLOCK_SIZE + this.BLOCK_SIZE - 3, y * this.BLOCK_SIZE + 1, 
-                         2, this.BLOCK_SIZE - 2);
-        this.ctx.fillRect(x * this.BLOCK_SIZE + 1, y * this.BLOCK_SIZE + this.BLOCK_SIZE - 3, 
-                         this.BLOCK_SIZE - 2, 2);
+        this.ctx.fillRect(x * blockSize + blockSize - 3, y * blockSize + 1, 
+                         2, blockSize - 2);
+        this.ctx.fillRect(x * blockSize + 1, y * blockSize + blockSize - 3, 
+                         blockSize - 2, 2);
     }
     
     drawFerretBlock(x, y) {
-        const blockX = x * this.BLOCK_SIZE + 1;
-        const blockY = y * this.BLOCK_SIZE + 1;
-        const blockSize = this.BLOCK_SIZE - 2;
+        const blockSize = this.getBlockSize();
+        const blockX = x * blockSize + 1;
+        const blockY = y * blockSize + 1;
+        const blockSizeInner = blockSize - 2;
         
         // Base ferret color with gradient
-        const gradient = this.ctx.createLinearGradient(blockX, blockY, blockX + blockSize, blockY + blockSize);
+        const gradient = this.ctx.createLinearGradient(blockX, blockY, blockX + blockSizeInner, blockY + blockSizeInner);
         gradient.addColorStop(0, '#8B4513'); // Brown
         gradient.addColorStop(0.5, '#A0522D'); // Saddle brown
         gradient.addColorStop(1, '#654321'); // Dark brown
         
         this.ctx.fillStyle = gradient;
-        this.ctx.fillRect(blockX, blockY, blockSize, blockSize);
+        this.ctx.fillRect(blockX, blockY, blockSizeInner, blockSizeInner);
         
         // Add ferret fur texture pattern
         this.ctx.strokeStyle = '#654321';
@@ -1884,10 +2060,10 @@ class WildBlocks {
         
         // Draw fur lines
         for (let i = 0; i < 3; i++) {
-            const offset = (i * blockSize / 3) + 2;
+            const offset = (i * blockSizeInner / 3) + 2;
             this.ctx.beginPath();
             this.ctx.moveTo(blockX + 2, blockY + offset);
-            this.ctx.lineTo(blockX + blockSize - 2, blockY + offset);
+            this.ctx.lineTo(blockX + blockSizeInner - 2, blockY + offset);
             this.ctx.stroke();
         }
         
@@ -1896,40 +2072,41 @@ class WildBlocks {
             const sparkleOffset = Math.sin(this.ferretAnimationFrame + x * 0.5 + y * 0.3) * 2;
             this.ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
             this.ctx.fillRect(blockX + 4 + sparkleOffset, blockY + 4, 2, 2);
-            this.ctx.fillRect(blockX + blockSize - 6 - sparkleOffset, blockY + blockSize - 6, 2, 2);
+            this.ctx.fillRect(blockX + blockSizeInner - 6 - sparkleOffset, blockY + blockSizeInner - 6, 2, 2);
         }
         
         // Enhanced highlight for ferret blocks
         this.ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-        this.ctx.fillRect(blockX, blockY, blockSize, 3);
-        this.ctx.fillRect(blockX, blockY, 3, blockSize);
+        this.ctx.fillRect(blockX, blockY, blockSizeInner, 3);
+        this.ctx.fillRect(blockX, blockY, 3, blockSizeInner);
         
         // Enhanced shadow for ferret blocks
         this.ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
-        this.ctx.fillRect(blockX + blockSize - 3, blockY, 3, blockSize);
-        this.ctx.fillRect(blockX, blockY + blockSize - 3, blockSize, 3);
+        this.ctx.fillRect(blockX + blockSizeInner - 3, blockY, 3, blockSizeInner);
+        this.ctx.fillRect(blockX, blockY + blockSizeInner - 3, blockSizeInner, 3);
         
         // Add subtle glow effect
         this.ctx.shadowColor = '#8B4513';
         this.ctx.shadowBlur = 3;
-        this.ctx.strokeRect(blockX, blockY, blockSize, blockSize);
+        this.ctx.strokeRect(blockX, blockY, blockSizeInner, blockSizeInner);
         this.ctx.shadowBlur = 0;
     }
     
     drawHoneyBlock(x, y) {
-        const blockX = x * this.BLOCK_SIZE + 1;
-        const blockY = y * this.BLOCK_SIZE + 1;
-        const blockSize = this.BLOCK_SIZE - 2;
+        const blockSize = this.getBlockSize();
+        const blockX = x * blockSize + 1;
+        const blockY = y * blockSize + 1;
+        const blockSizeInner = blockSize - 2;
         
         // Create honey gradient
-        const gradient = this.ctx.createLinearGradient(blockX, blockY, blockX + blockSize, blockY + blockSize);
+        const gradient = this.ctx.createLinearGradient(blockX, blockY, blockX + blockSizeInner, blockY + blockSizeInner);
         gradient.addColorStop(0, '#FFD700'); // Golden yellow
         gradient.addColorStop(0.3, '#FFA500'); // Orange
         gradient.addColorStop(0.7, '#FF8C00'); // Dark orange
         gradient.addColorStop(1, '#DAA520'); // Goldenrod
         
         this.ctx.fillStyle = gradient;
-        this.ctx.fillRect(blockX, blockY, blockSize, blockSize);
+        this.ctx.fillRect(blockX, blockY, blockSizeInner, blockSizeInner);
         
         // Add honey texture pattern (wavy lines)
         this.ctx.strokeStyle = '#B8860B';
@@ -1937,12 +2114,12 @@ class WildBlocks {
         
         // Draw wavy honey texture
         for (let i = 0; i < 3; i++) {
-            const offset = (i * blockSize / 3) + 2;
+            const offset = (i * blockSizeInner / 3) + 2;
             this.ctx.beginPath();
             this.ctx.moveTo(blockX + 2, blockY + offset);
             
             // Create wavy pattern
-            for (let j = 0; j < blockSize - 4; j += 4) {
+            for (let j = 0; j < blockSizeInner - 4; j += 4) {
                 const waveOffset = Math.sin(j * 0.5) * 2;
                 this.ctx.lineTo(blockX + 2 + j, blockY + offset + waveOffset);
             }
@@ -1951,23 +2128,25 @@ class WildBlocks {
         
         // Add highlight
         this.ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-        this.ctx.fillRect(blockX, blockY, blockSize, 3);
-        this.ctx.fillRect(blockX, blockY, 3, blockSize);
+        this.ctx.fillRect(blockX, blockY, blockSizeInner, 3);
+        this.ctx.fillRect(blockX, blockY, 3, blockSizeInner);
         
         // Add shadow
         this.ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
-        this.ctx.fillRect(blockX + blockSize - 3, blockY, 3, blockSize);
-        this.ctx.fillRect(blockX, blockY + blockSize - 3, blockSize, 3);
+        this.ctx.fillRect(blockX + blockSizeInner - 3, blockY, 3, blockSizeInner);
+        this.ctx.fillRect(blockX, blockY + blockSizeInner - 3, blockSizeInner, 3);
         
         // Draw bee emoji
-        const centerX = blockX + blockSize / 2;
-        const centerY = blockY + blockSize / 2;
+        const centerX = blockX + blockSizeInner / 2;
+        const centerY = blockY + blockSizeInner / 2;
         
         // Animate bee emoji with a gentle floating effect
         const floatOffset = Math.sin(this.beeAnimationFrame + x * 0.2 + y * 0.3) * 1;
         const beeY = centerY + floatOffset;
         
-        this.ctx.font = '12px Arial';
+        // Responsive font size for bee emoji
+        const fontSize = Math.max(8, Math.min(12, blockSizeInner * 0.4));
+        this.ctx.font = fontSize + 'px Arial';
         this.ctx.textAlign = 'center';
         this.ctx.textBaseline = 'middle';
         
@@ -1985,15 +2164,17 @@ class WildBlocks {
     }
     
     drawDeerEmoji(x, y) {
-        const centerX = x * this.BLOCK_SIZE + this.BLOCK_SIZE / 2;
-        const centerY = y * this.BLOCK_SIZE + this.BLOCK_SIZE / 2;
+        const blockSize = this.getBlockSize();
+        const centerX = x * blockSize + blockSize / 2;
+        const centerY = y * blockSize + blockSize / 2;
         
         // Animate deer position with a bouncing effect
         const bounceOffset = Math.sin(this.deerAnimationFrame) * 3;
         const deerY = centerY + bounceOffset;
         
-        // Draw deer emoji
-        this.ctx.font = '16px Arial';
+        // Draw deer emoji with responsive font size
+        const fontSize = Math.max(12, Math.min(16, blockSize * 0.5));
+        this.ctx.font = fontSize + 'px Arial';
         this.ctx.textAlign = 'center';
         this.ctx.textBaseline = 'middle';
         this.ctx.fillText('🦌', centerX, deerY);
@@ -2006,16 +2187,18 @@ class WildBlocks {
     }
     
     drawFerretEmoji(x, y) {
-        const centerX = x * this.BLOCK_SIZE + this.BLOCK_SIZE / 2;
-        const centerY = y * this.BLOCK_SIZE + this.BLOCK_SIZE / 2;
+        const blockSize = this.getBlockSize();
+        const centerX = x * blockSize + blockSize / 2;
+        const centerY = y * blockSize + blockSize / 2;
         
         // Animate ferret with a wiggling effect
         const wiggleOffset = Math.sin(this.ferretAnimationFrame + x * 0.3) * 2;
         const ferretX = centerX + wiggleOffset;
         const ferretY = centerY;
         
-        // Draw ferret emoji
-        this.ctx.font = '14px Arial';
+        // Draw ferret emoji with responsive font size
+        const fontSize = Math.max(10, Math.min(14, blockSize * 0.45));
+        this.ctx.font = fontSize + 'px Arial';
         this.ctx.textAlign = 'center';
         this.ctx.textBaseline = 'middle';
         
@@ -2035,8 +2218,9 @@ class WildBlocks {
             const beeX = bee.x + buzzOffset;
             const beeY = bee.y;
             
-            // Draw bee emoji
-            this.ctx.font = '12px Arial';
+            // Draw bee emoji with responsive font size
+            const fontSize = this.isMobile ? 10 : 12;
+            this.ctx.font = fontSize + 'px Arial';
             this.ctx.textAlign = 'center';
             this.ctx.textBaseline = 'middle';
             
@@ -2060,8 +2244,9 @@ class WildBlocks {
         const catX = this.cat.x + Math.sin(this.catAnimationFrame) * 1;
         const catY = this.cat.y;
         
-        // Draw cat emoji
-        this.ctx.font = '20px Arial';
+        // Draw cat emoji with responsive font size
+        const fontSize = this.isMobile ? 16 : 20;
+        this.ctx.font = fontSize + 'px Arial';
         this.ctx.textAlign = 'center';
         this.ctx.textBaseline = 'middle';
         
@@ -2099,13 +2284,15 @@ class WildBlocks {
         
         // Draw "zzz" text
         this.ctx.fillStyle = '#333';
-        this.ctx.font = '12px Arial';
+        const fontSize = this.isMobile ? 10 : 12;
+        this.ctx.font = fontSize + 'px Arial';
         this.ctx.textAlign = 'center';
         this.ctx.textBaseline = 'middle';
         this.ctx.fillText('zzz', bubbleX, bubbleY - 5);
         
         // Draw sleeping cat emoji
-        this.ctx.font = '14px Arial';
+        const emojiSize = this.isMobile ? 12 : 14;
+        this.ctx.font = emojiSize + 'px Arial';
         this.ctx.fillText('😴', bubbleX, bubbleY + 5);
     }
     
@@ -2126,7 +2313,8 @@ class WildBlocks {
         
         // Draw clawing text
         this.ctx.fillStyle = '#333';
-        this.ctx.font = '10px Arial';
+        const fontSize = this.isMobile ? 8 : 10;
+        this.ctx.font = fontSize + 'px Arial';
         this.ctx.textAlign = 'center';
         this.ctx.textBaseline = 'middle';
         this.ctx.fillText('scratch', bubbleX, bubbleY - 5);
@@ -2134,7 +2322,8 @@ class WildBlocks {
         
         // Animate the cat emoji with scratching motion
         const scratchOffset = Math.sin(this.catClawProgress * 0.3) * 3;
-        this.ctx.font = '16px Arial';
+        const emojiSize = this.isMobile ? 14 : 16;
+        this.ctx.font = emojiSize + 'px Arial';
         this.ctx.fillText('🐾', catX + scratchOffset, catY);
     }
 }

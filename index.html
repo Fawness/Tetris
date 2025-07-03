@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Wild Blocks 🐾 - Ultra Lightweight</title>
     <link rel="stylesheet" href="style.css">
 </head>
@@ -35,7 +35,7 @@
                     <canvas id="nextCanvas" width="120" height="120"></canvas>
                 </div>
                 
-                <div class="controls">
+                <div class="controls desktop-controls">
                     <h3>Controls</h3>
                     <div class="control-item">
                         <span class="key">←→</span>
@@ -88,10 +88,27 @@
                         <span class="mode-label">🐱 Cat Mode</span>
                     </label>
                 </div>
-                </div>
                 
                 <button id="startBtn" class="start-btn">Start Game</button>
                 <button id="pauseBtn" class="pause-btn" style="display: none;">Pause</button>
+            </div>
+        </div>
+        
+        <!-- Mobile Touch Controls -->
+        <div class="mobile-controls" id="mobileControls" style="display: none;">
+            <div class="touch-controls">
+                <div class="control-row">
+                    <button class="touch-btn rotate-btn" id="rotateBtn">🔄</button>
+                    <button class="touch-btn pause-btn-mobile" id="pauseBtnMobile">⏸️</button>
+                </div>
+                <div class="control-row">
+                    <button class="touch-btn left-btn" id="leftBtn">⬅️</button>
+                    <button class="touch-btn down-btn" id="downBtn">⬇️</button>
+                    <button class="touch-btn right-btn" id="rightBtn">➡️</button>
+                </div>
+                <div class="control-row">
+                    <button class="touch-btn hard-drop-btn" id="hardDropBtn">💥</button>
+                </div>
             </div>
         </div>
     </div>
