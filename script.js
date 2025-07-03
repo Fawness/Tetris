@@ -274,10 +274,7 @@ class WildBlocks {
     }
     
     setupMobileControls() {
-        // Show mobile controls and hide desktop controls
-        if (this.mobileControls) {
-            this.mobileControls.style.display = 'block';
-        }
+        // Hide desktop controls on mobile
         if (this.desktopControls) {
             this.desktopControls.style.display = 'none';
         }
@@ -455,6 +452,11 @@ class WildBlocks {
         document.getElementById('ferretMode').disabled = true;
         document.getElementById('catMode').disabled = true;
         
+        // Show mobile controls if on mobile device
+        if (this.isMobile && this.mobileControls) {
+            this.mobileControls.classList.add('game-running');
+        }
+        
         this.gameLoop();
     }
     
@@ -463,6 +465,15 @@ class WildBlocks {
         
         this.gamePaused = !this.gamePaused;
         document.getElementById('pauseBtn').textContent = this.gamePaused ? 'Resume' : 'Pause';
+        
+        // Show/hide mobile controls based on pause state
+        if (this.isMobile && this.mobileControls) {
+            if (this.gamePaused) {
+                this.mobileControls.classList.remove('game-running');
+            } else {
+                this.mobileControls.classList.add('game-running');
+            }
+        }
     }
     
     createNewPiece() {
@@ -1467,6 +1478,11 @@ class WildBlocks {
         document.getElementById('ohDeerMode').disabled = false;
         document.getElementById('beeMode').disabled = false;
         document.getElementById('ferretMode').disabled = false;
+        
+        // Hide mobile controls when game ends
+        if (this.isMobile && this.mobileControls) {
+            this.mobileControls.classList.remove('game-running');
+        }
         
         this.showGameOver();
     }

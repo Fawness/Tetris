@@ -245,6 +245,7 @@ body {
     border-radius: 15px;
     padding: 15px;
     border: 2px solid #00d4ff;
+    display: none; /* Hidden by default */
 }
 
 .touch-controls {
@@ -361,7 +362,7 @@ body {
     }
     
     .mobile-controls {
-        display: block !important;
+        display: none !important;
         bottom: 10px;
         padding: 10px;
     }
@@ -490,6 +491,11 @@ body {
 
 .game-over button:hover {
     background: #cc3333;
+}
+
+/* Show mobile controls when game is running */
+.mobile-controls.game-running {
+    display: block !important;
 }
 
 /* Hide mobile controls on desktop */
