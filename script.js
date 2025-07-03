@@ -59,6 +59,24 @@ class WildBlocks {
         this.maxNoodlePhases = 5; // Maximum number of noodling phases
         this.ferretNoodleDelay = 0; // Delay between phases
         
+        // Cat Mode settings
+        this.catMode = false;
+        this.cat = null;
+        this.catSpawnChance = 0.02; // 2% chance per frame for cat to appear
+        this.catLeaveChance = 0.005; // 0.5% chance per frame for cat to leave
+        this.catAnimationFrame = 0;
+        this.catAnimationSpeed = 0.1;
+        this.catActionTimer = 0;
+        this.catActionInterval = 180; // 3 seconds between actions
+        this.catClawChance = 0.3; // 30% chance to claw when taking action
+        this.catNapChance = 0.7; // 70% chance to nap when taking action
+        this.catNapDuration = 300; // 5 seconds nap duration
+        this.catNapTimer = 0;
+        this.catClawing = false;
+        this.catClawTarget = null;
+        this.catClawProgress = 0;
+        this.catClawDuration = 60; // 1 second claw animation
+        
         // Line clear animation
         this.lineClearAnimation = {
             active: false,
@@ -289,6 +307,12 @@ class WildBlocks {
         // Check if Ferret Mode is enabled
         this.ferretMode = document.getElementById('ferretMode').checked;
         
+        // Check if Cat Mode is enabled
+        this.catMode = document.getElementById('catMode').checked;
+        if (this.catMode) {
+            this.cat = null;
+        }
+        
         this.currentPiece = this.createNewPiece();
         this.nextPiece = this.createNewPiece();
         
@@ -298,6 +322,7 @@ class WildBlocks {
         document.getElementById('ohDeerMode').disabled = true;
         document.getElementById('beeMode').disabled = true;
         document.getElementById('ferretMode').disabled = true;
+        document.getElementById('catMode').disabled = true;
         
         this.gameLoop();
     }
@@ -438,6 +463,15 @@ class WildBlocks {
                         newY >= this.BOARD_HEIGHT ||
                         (newY >= 0 && this.board[newY][newX])) {
                         return false;
+                    }
+                    
+                    // Check if cat is napping on this position
+                    if (this.catMode && this.cat && this.cat.napping) {
+                        const catBoardX = Math.floor(this.cat.targetX / this.BLOCK_SIZE);
+                        const catBoardY = Math.floor(this.cat.targetY / this.BLOCK_SIZE);
+                        if (newX === catBoardX && newY === catBoardY) {
+                            return false;
+                        }
                     }
                 }
             }
@@ -1345,6 +1379,12 @@ class WildBlocks {
             this.updateFerretNoodling();
         }
         
+        // Update cat animation and behavior
+        if (this.catMode) {
+            this.catAnimationFrame += this.catAnimationSpeed;
+            this.updateCat();
+        }
+        
         // Update line clear animation
         this.updateLineClearAnimation();
         
@@ -1495,11 +1535,176 @@ class WildBlocks {
         this.updateScore();
     }
     
+    updateCat() {
+        // Spawn cat if none exists
+        if (!this.cat && Math.random() < this.catSpawnChance) {
+            this.spawnCat();
+        }
+        
+        // Update existing cat
+        if (this.cat) {
+            // Check if cat should leave
+            if (Math.random() < this.catLeaveChance) {
+                this.cat = null;
+                return;
+            }
+            
+            // Update cat position (slow walking)
+            if (!this.cat.napping && !this.cat.clawing) {
+                this.cat.x += this.cat.vx;
+                this.cat.y += this.cat.vy;
+                
+                // Keep cat within board bounds
+                if (this.cat.x < 0) this.cat.x = 0;
+                if (this.cat.x > this.canvas.width - 20) this.cat.x = this.canvas.width - 20;
+                if (this.cat.y < 0) this.cat.y = 0;
+                if (this.cat.y > this.canvas.height - 20) this.cat.y = this.canvas.height - 20;
+                
+                // Random direction changes
+                if (Math.random() < 0.02) {
+                    this.cat.vx = (Math.random() - 0.5) * 0.5;
+                    this.cat.vy = (Math.random() - 0.5) * 0.5;
+                }
+            }
+            
+            // Update action timer
+            this.catActionTimer++;
+            
+            // Take action when timer expires
+            if (this.catActionTimer >= this.catActionInterval && !this.cat.napping && !this.cat.clawing) {
+                this.catTakeAction();
+                this.catActionTimer = 0;
+            }
+            
+            // Update nap timer
+            if (this.cat.napping) {
+                this.catNapTimer++;
+                if (this.catNapTimer >= this.catNapDuration) {
+                    this.cat.napping = false;
+                    this.catNapTimer = 0;
+                }
+            }
+            
+            // Update clawing animation
+            if (this.cat.clawing) {
+                this.catClawProgress++;
+                if (this.catClawProgress >= this.catClawDuration) {
+                    this.completeCatClaw();
+                }
+            }
+        }
+    }
+    
+    spawnCat() {
+        // Spawn cat at a random edge of the board
+        const side = Math.floor(Math.random() * 4);
+        let x, y, vx, vy;
+        
+        switch(side) {
+            case 0: // top
+                x = Math.random() * this.canvas.width;
+                y = -20;
+                vx = (Math.random() - 0.5) * 0.5;
+                vy = Math.random() * 0.5 + 0.2;
+                break;
+            case 1: // right
+                x = this.canvas.width + 20;
+                y = Math.random() * this.canvas.height;
+                vx = -Math.random() * 0.5 - 0.2;
+                vy = (Math.random() - 0.5) * 0.5;
+                break;
+            case 2: // bottom
+                x = Math.random() * this.canvas.width;
+                y = this.canvas.height + 20;
+                vx = (Math.random() - 0.5) * 0.5;
+                vy = -Math.random() * 0.5 - 0.2;
+                break;
+            case 3: // left
+                x = -20;
+                y = Math.random() * this.canvas.height;
+                vx = Math.random() * 0.5 + 0.2;
+                vy = (Math.random() - 0.5) * 0.5;
+                break;
+        }
+        
+        this.cat = {
+            x: x,
+            y: y,
+            vx: vx,
+            vy: vy,
+            napping: false,
+            clawing: false,
+            targetX: null,
+            targetY: null
+        };
+    }
+    
+    catTakeAction() {
+        // Decide whether to nap or claw
+        if (Math.random() < this.catNapChance) {
+            this.catStartNap();
+        } else {
+            this.catStartClaw();
+        }
+    }
+    
+    catStartNap() {
+        // Find a random block to nap on
+        const occupiedPositions = [];
+        for (let y = 0; y < this.BOARD_HEIGHT; y++) {
+            for (let x = 0; x < this.BOARD_WIDTH; x++) {
+                if (this.board[y][x] !== 0) {
+                    occupiedPositions.push({x, y});
+                }
+            }
+        }
+        
+        if (occupiedPositions.length > 0) {
+            const napSpot = occupiedPositions[Math.floor(Math.random() * occupiedPositions.length)];
+            this.cat.targetX = napSpot.x * this.BLOCK_SIZE + this.BLOCK_SIZE / 2;
+            this.cat.targetY = napSpot.y * this.BLOCK_SIZE + this.BLOCK_SIZE / 2;
+            this.cat.napping = true;
+            this.catNapTimer = 0;
+        }
+    }
+    
+    catStartClaw() {
+        // Find a random block to claw
+        const occupiedPositions = [];
+        for (let y = 0; y < this.BOARD_HEIGHT; y++) {
+            for (let x = 0; x < this.BOARD_WIDTH; x++) {
+                if (this.board[y][x] !== 0) {
+                    occupiedPositions.push({x, y});
+                }
+            }
+        }
+        
+        if (occupiedPositions.length > 0) {
+            const clawTarget = occupiedPositions[Math.floor(Math.random() * occupiedPositions.length)];
+            this.cat.targetX = clawTarget.x * this.BLOCK_SIZE + this.BLOCK_SIZE / 2;
+            this.cat.targetY = clawTarget.y * this.BLOCK_SIZE + this.BLOCK_SIZE / 2;
+            this.cat.clawing = true;
+            this.catClawTarget = {x: clawTarget.x, y: clawTarget.y};
+            this.catClawProgress = 0;
+        }
+    }
+    
+    completeCatClaw() {
+        if (this.catClawTarget) {
+            // Remove the target block
+            this.board[this.catClawTarget.y][this.catClawTarget.x] = 0;
+            this.cat.clawing = false;
+            this.catClawTarget = null;
+            this.catClawProgress = 0;
+        }
+    }
+    
     draw() {
         this.drawBoard();
         this.drawCurrentPiece();
         this.drawNextPiece();
         this.drawBees();
+        this.drawCat();
     }
     
     drawBoard() {
@@ -1846,6 +2051,91 @@ class WildBlocks {
             this.ctx.fillText('🐝', beeX - bee.vx * 2, beeY - bee.vy * 2);
             this.ctx.globalAlpha = 1.0;
         }
+    }
+    
+    drawCat() {
+        if (!this.catMode || !this.cat) return;
+        
+        // Animate cat with gentle movement
+        const catX = this.cat.x + Math.sin(this.catAnimationFrame) * 1;
+        const catY = this.cat.y;
+        
+        // Draw cat emoji
+        this.ctx.font = '20px Arial';
+        this.ctx.textAlign = 'center';
+        this.ctx.textBaseline = 'middle';
+        
+        // Add glow effect
+        this.ctx.shadowColor = '#FFA500';
+        this.ctx.shadowBlur = 4;
+        this.ctx.fillText('🐱', catX, catY);
+        this.ctx.shadowBlur = 0;
+        
+        // Draw speech bubble if napping
+        if (this.cat.napping) {
+            this.drawCatNapBubble(catX, catY);
+        }
+        
+        // Draw clawing animation if clawing
+        if (this.cat.clawing) {
+            this.drawCatClawingAnimation(catX, catY);
+        }
+    }
+    
+    drawCatNapBubble(catX, catY) {
+        const bubbleX = catX + 15;
+        const bubbleY = catY - 25;
+        
+        // Draw speech bubble background
+        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+        this.ctx.strokeStyle = '#333';
+        this.ctx.lineWidth = 2;
+        
+        // Bubble shape
+        this.ctx.beginPath();
+        this.ctx.rect(bubbleX - 20, bubbleY - 15, 40, 30);
+        this.ctx.fill();
+        this.ctx.stroke();
+        
+        // Draw "zzz" text
+        this.ctx.fillStyle = '#333';
+        this.ctx.font = '12px Arial';
+        this.ctx.textAlign = 'center';
+        this.ctx.textBaseline = 'middle';
+        this.ctx.fillText('zzz', bubbleX, bubbleY - 5);
+        
+        // Draw sleeping cat emoji
+        this.ctx.font = '14px Arial';
+        this.ctx.fillText('😴', bubbleX, bubbleY + 5);
+    }
+    
+    drawCatClawingAnimation(catX, catY) {
+        const bubbleX = catX + 15;
+        const bubbleY = catY - 25;
+        
+        // Draw speech bubble background
+        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+        this.ctx.strokeStyle = '#333';
+        this.ctx.lineWidth = 2;
+        
+        // Bubble shape
+        this.ctx.beginPath();
+        this.ctx.rect(bubbleX - 25, bubbleY - 15, 50, 30);
+        this.ctx.fill();
+        this.ctx.stroke();
+        
+        // Draw clawing text
+        this.ctx.fillStyle = '#333';
+        this.ctx.font = '10px Arial';
+        this.ctx.textAlign = 'center';
+        this.ctx.textBaseline = 'middle';
+        this.ctx.fillText('scratch', bubbleX, bubbleY - 5);
+        this.ctx.fillText('scratch', bubbleX, bubbleY + 5);
+        
+        // Animate the cat emoji with scratching motion
+        const scratchOffset = Math.sin(this.catClawProgress * 0.3) * 3;
+        this.ctx.font = '16px Arial';
+        this.ctx.fillText('🐾', catX + scratchOffset, catY);
     }
 }
 

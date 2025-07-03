@@ -47,6 +47,13 @@ A modern, feature-rich implementation of the classic block-stacking game that ru
 - **Rotation support** - ferret works in both horizontal and vertical orientations
 - **Reachable position logic** - ferret can't teleport, only moves to accessible areas
 
+### 🐱 Cat Mode
+- **Lazy cat companion** that randomly appears and walks around the board
+- **Nap behavior** - cat chooses random blocks to sleep on, preventing piece placement
+- **Clawing action** - cat may scratch and remove blocks from the board
+- **Speech bubbles** - visual indicators for cat's actions ("zzz" for napping, "scratch" for clawing)
+- **Random timing** - cat comes and goes unpredictably, adding challenge when enabled
+
 ### Controls
 - **← →**: Move pieces left/right
 - **↓**: Soft drop (move down faster)
@@ -97,11 +104,19 @@ A modern, feature-rich implementation of the classic block-stacking game that ru
 - Animated ferret emojis with realistic fur textures
 - Works in both horizontal and vertical orientations
 
+### Cat Mode
+- Lazy cat that randomly appears and walks around the board
+- Takes naps on random blocks, preventing piece placement
+- May claw and remove blocks from the board
+- Visual speech bubbles show cat's current action
+- Adds unpredictable challenge when enabled
+
 ### Mode Combinations
 - **Mix and match** any combination of modes
 - **Oh Deer God + Bee Mode**: Chaotic gameplay with helpful bees
 - **Bee Mode + Ferret Mode**: Maximum gap-filling assistance
-- **All modes**: Ultimate chaos with crazy blocks, bees, and ferrets
+- **Cat Mode + Any Mode**: Adds unpredictable challenge with lazy cat behavior
+- **All modes**: Ultimate chaos with crazy blocks, bees, ferrets, and cats
 
 ## 📊 Scoring System
 
