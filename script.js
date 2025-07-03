@@ -280,6 +280,12 @@ class WildBlocks {
             // Wait for orientation change to complete
             setTimeout(() => this.handleResize(), 100);
         });
+        
+        // Monitor viewport changes on mobile
+        if (this.isMobile) {
+            this.setupViewportMonitoring();
+        }
+        
         this.handleResize();
     }
     
@@ -385,9 +391,17 @@ class WildBlocks {
         const viewportHeight = window.innerHeight;
         
         // Calculate available space for the canvas
-        const padding = 40; // Account for padding and UI elements
-        const maxWidth = Math.min(viewportWidth - padding, 300);
-        const maxHeight = Math.min(viewportHeight - 200, 600);
+        // Account for UI elements, padding, and mobile controls
+        const uiHeight = 200; // Header, score board, controls
+        const padding = 40;
+        const mobileControlsHeight = 150; // Space for mobile controls
+        
+        const availableWidth = viewportWidth - padding;
+        const availableHeight = viewportHeight - uiHeight - mobileControlsHeight - padding;
+        
+        // Calculate maximum possible canvas size
+        const maxWidth = Math.min(availableWidth, 300);
+        const maxHeight = Math.min(availableHeight, 600);
         
         // Maintain aspect ratio
         const aspectRatio = this.BOARD_WIDTH / this.BOARD_HEIGHT;
@@ -401,33 +415,64 @@ class WildBlocks {
         
         // Ensure the width is a multiple of BOARD_WIDTH for perfect grid alignment
         const blockSize = Math.floor(newWidth / this.BOARD_WIDTH);
-        newWidth = blockSize * this.BOARD_WIDTH;
-        newHeight = blockSize * this.BOARD_HEIGHT;
         
-        // Set canvas size
-        this.canvas.style.width = newWidth + 'px';
-        this.canvas.style.height = newHeight + 'px';
+        // Ensure minimum block size for visibility
+        const minBlockSize = 15;
+        if (blockSize < minBlockSize) {
+            // If blocks would be too small, use minimum size and adjust layout
+            this.BLOCK_SIZE = minBlockSize;
+            newWidth = minBlockSize * this.BOARD_WIDTH;
+            newHeight = minBlockSize * this.BOARD_HEIGHT;
+        } else {
+            this.BLOCK_SIZE = blockSize;
+            newWidth = blockSize * this.BOARD_WIDTH;
+            newHeight = blockSize * this.BOARD_HEIGHT;
+        }
         
-        // Update block size for drawing calculations
-        this.BLOCK_SIZE = blockSize;
+        // Set canvas size with integer values
+        this.canvas.style.width = Math.floor(newWidth) + 'px';
+        this.canvas.style.height = Math.floor(newHeight) + 'px';
+        
+        // Ensure canvas is centered
+        this.canvas.style.margin = '0 auto';
+        this.canvas.style.display = 'block';
     }
     
     lockMobileViewport() {
-        // Store original viewport height
+        // Store original viewport dimensions
         this.originalViewportHeight = window.innerHeight;
+        this.originalViewportWidth = window.innerWidth;
         
-        // Set viewport meta tag to prevent scaling
+        // Set viewport meta tag to prevent scaling and address bar hiding
         const viewportMeta = document.querySelector('meta[name="viewport"]');
         if (viewportMeta) {
-            viewportMeta.setAttribute('content', 'width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover');
+            viewportMeta.setAttribute('content', 'width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover, minimal-ui');
         }
         
         // Update canvas size with locked dimensions
         this.updateMobileCanvasSize();
         
-        // Prevent scroll events
+        // Prevent scroll and zoom events
         document.addEventListener('touchmove', this.preventDefault, { passive: false });
         document.addEventListener('scroll', this.preventDefault, { passive: false });
+        document.addEventListener('gesturestart', this.preventDefault, { passive: false });
+        document.addEventListener('gesturechange', this.preventDefault, { passive: false });
+        document.addEventListener('gestureend', this.preventDefault, { passive: false });
+        
+        // Store current scroll position to prevent any movement
+        this.scrollX = window.scrollX;
+        this.scrollY = window.scrollY;
+        
+        // Force scroll to top to prevent address bar issues
+        window.scrollTo(0, 0);
+        
+        // Add a small delay and re-check viewport
+        setTimeout(() => {
+            if (this.gameRunning && !this.gamePaused) {
+                this.updateMobileCanvasSize();
+                window.scrollTo(0, 0);
+            }
+        }, 100);
     }
     
     unlockMobileViewport() {
@@ -437,9 +482,12 @@ class WildBlocks {
             viewportMeta.setAttribute('content', 'width=device-width, initial-scale=1.0, user-scalable=no');
         }
         
-        // Remove scroll prevention
+        // Remove all event listeners
         document.removeEventListener('touchmove', this.preventDefault);
         document.removeEventListener('scroll', this.preventDefault);
+        document.removeEventListener('gesturestart', this.preventDefault);
+        document.removeEventListener('gesturechange', this.preventDefault);
+        document.removeEventListener('gestureend', this.preventDefault);
         
         // Reset canvas size
         this.handleResize();
@@ -447,6 +495,36 @@ class WildBlocks {
     
     preventDefault(e) {
         e.preventDefault();
+    }
+    
+    setupViewportMonitoring() {
+        // Monitor for viewport changes and maintain locked state
+        let lastViewportHeight = window.innerHeight;
+        let lastViewportWidth = window.innerWidth;
+        
+        const checkViewport = () => {
+            if (this.gameRunning && !this.gamePaused && this.isMobile) {
+                const currentHeight = window.innerHeight;
+                const currentWidth = window.innerWidth;
+                
+                // If viewport changed, re-lock it
+                if (currentHeight !== lastViewportHeight || currentWidth !== lastViewportWidth) {
+                    lastViewportHeight = currentHeight;
+                    lastViewportWidth = currentWidth;
+                    
+                    // Re-apply viewport locking
+                    this.updateMobileCanvasSize();
+                    
+                    // Force scroll position to prevent movement
+                    if (this.scrollX !== undefined && this.scrollY !== undefined) {
+                        window.scrollTo(this.scrollX, this.scrollY);
+                    }
+                }
+            }
+        };
+        
+        // Check viewport every 100ms when game is running
+        setInterval(checkViewport, 100);
     }
     
     handleKeyPress(e) {
