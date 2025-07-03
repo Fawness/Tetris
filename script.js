@@ -111,6 +111,9 @@ class WildBlocks {
             this.mobileControls.classList.remove('game-running');
         }
         
+        // Ensure body doesn't have game-running class on initialization
+        document.body.classList.remove('game-running');
+        
         this.draw();
     }
     
